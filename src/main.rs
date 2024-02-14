@@ -1,43 +1,34 @@
-use crossterm::{
-    event::{self, KeyCode, KeyEventKind},
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
-    ExecutableCommand,
-};
+pub mod app;
+pub mod event;
+pub mod tui;
+pub mod ui;
+pub mod update;
 
-use ratatui::{
-    prelude::{CrosstermBackend, Stylize, Terminal},
-    widgets::Paragraph,
-};
-
-use std::io::{stdout, Result};
+use anyhow::Result;
+use app::{App, RunningState};
+use event::{EventHandler, Message};
+use ratatui::{backend::CrosstermBackend, Terminal};
+use tui::Tui;
+use update::update;
 
 fn main() -> Result<()> {
-    stdout().execute(EnterAlternateScreen)?;
-    enable_raw_mode()?;
-    let mut terminal = Terminal::new(CrosstermBackend::new(stdout()))?;
-    terminal.clear()?;
+    let mut app = App::new();
 
-    loop {
-        terminal.draw(|frame| {
-            let area = frame.size();
-            frame.render_widget(
-                Paragraph::new("Hello Max! (press 'q' to quit)")
-                    .white()
-                    .on_blue(),
-                area,
-            );
-        })?;
+    // init terminal user interface
+    let backend = CrosstermBackend::new(std::io::stdout());
+    let terminal = Terminal::new(backend)?;
+    let events = EventHandler::new(250); // TODO: experiment on tick_rate
 
-        if event::poll(std::time::Duration::from_millis(16))? {
-            if let event::Event::Key(key) = event::read()? {
-                if key.kind == KeyEventKind::Press && key.code == KeyCode::Char('q') {
-                    break;
-                }
-            }
-        }
+    let mut tui = Tui::new(terminal, events);
+    tui.enter()?;
+
+    while app.running_state == RunningState::Running {
+        tui.draw(&mut app)?;
+
+        let msg = tui.events.next()?;
+        update(&mut app, msg)
     }
 
-    stdout().execute(LeaveAlternateScreen)?;
-    disable_raw_mode()?;
+    tui.exit()?;
     Ok(())
 }
