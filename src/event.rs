@@ -1,11 +1,16 @@
-use crossterm::event::{self, Event, KeyEvent, MouseEvent};
+use crossterm::event::{self, Event, KeyCode, KeyEvent, MouseEvent};
 use std::{
-    sync::mpsc,
+    sync::{
+        mpsc::{self, SendError},
+        Arc, RwLock,
+    },
     thread,
     time::{Duration, Instant},
 };
 
 use anyhow::Result;
+
+use crate::app::App;
 
 #[derive(Debug, PartialEq)]
 pub enum Message {
@@ -34,7 +39,7 @@ pub struct EventHandler {
 
 impl EventHandler {
     /// Construct a new instance of ['EventHandler']
-    pub fn new(tick_rate: u64) -> Self {
+    pub fn new(tick_rate: u64, app: Arc<RwLock<App>>) -> Self {
         let tick_rate = Duration::from_millis(tick_rate);
         let (sender, receiver) = mpsc::channel();
         let handler = {
@@ -49,11 +54,11 @@ impl EventHandler {
                     if event::poll(timeout).expect("unable to poll for event") {
                         match event::read().expect("unable to read event") {
                             Event::Key(e) => {
-                                // TODO: parse keys to known messages, else send keypress message
-                                if e.kind == event::KeyEventKind::Press {
-                                    sender.send(Message::Key(e))
+                                let msg = Self::handle_key(&app, e);
+                                if let Some(msg) = msg {
+                                    sender.send(msg)
                                 } else {
-                                    Ok(()) // ignore KeyEventKind::Release on windows
+                                    Ok(())
                                 }
                             }
                             Event::Mouse(_e) => Ok(()),
@@ -75,7 +80,25 @@ impl EventHandler {
         }
     }
 
-    pub fn next(&self) -> Result<Message> {
-        Ok(self.receiver.recv()?)
+    fn handle_key(app_arc: &Arc<RwLock<App>>, key: KeyEvent) -> Option<Message> {
+        let app = app_arc.read().unwrap();
+        match key.code {
+            KeyCode::Esc => Some(Message::Quit),
+            KeyCode::Char('q') => {
+                if !app.is_currently_editing {
+                    Some(Message::Quit)
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    }
+
+    pub fn next(&self) -> Option<Message> {
+        match self.receiver.recv() {
+            Ok(msg) => Some(msg),
+            Err(_) => None,
+        }
     }
 }

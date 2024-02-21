@@ -8,6 +8,8 @@ pub struct App {
     pub running_state: RunningState,
     pub current_screen: CurrentScreen,
     pub current_focus: CurrentFocus,
+    /// tracking whether the user is currently inputting something in a text field
+    pub is_currently_editing: bool,
     pub blocking_status: BlockingStatus,
     pub dns_status: Option<DNSStatus>,
 }
@@ -91,15 +93,22 @@ pub enum RunningState {
     Done,
 }
 
-impl App {
-    pub fn new() -> Self {
+impl Default for App {
+    fn default() -> Self {
         Self {
             running_state: RunningState::Running,
             current_screen: CurrentScreen::Main,
             current_focus: CurrentFocus::Status,
+            is_currently_editing: false,
             blocking_status: BlockingStatus::default(),
             dns_status: None,
         }
+    }
+}
+
+impl App {
+    pub fn new() -> Self {
+        App::default()
     }
 
     pub fn change_running_state(&mut self, state: RunningState) {

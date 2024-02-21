@@ -8,9 +8,7 @@ use ratatui::{
 
 use crate::app::App;
 
-// TODO: replace App with Model struct? -> App does not contain complete data? -> or should the App
-// struct be modeled to contain all important data?
-pub fn render(_app: &mut App, frame: &mut Frame) {
+pub fn render(_app: &App, frame: &mut Frame) {
     // tiles are the individual layout components
     let main_tiles = Layout::default()
         .direction(Direction::Vertical)
@@ -39,7 +37,7 @@ pub fn render(_app: &mut App, frame: &mut Frame) {
     render_query_tile(_app, main_tiles[2], frame);
 }
 
-fn render_title(_app: &mut App, r: Rect, frame: &mut Frame) {
+fn render_title(_app: &App, r: Rect, frame: &mut Frame) {
     let block = Block::default()
         .borders(Borders::ALL)
         .style(Style::default());
@@ -53,7 +51,7 @@ fn render_title(_app: &mut App, r: Rect, frame: &mut Frame) {
     frame.render_widget(title, r);
 }
 
-fn render_query_tile(_app: &mut App, r: Rect, frame: &mut Frame) {
+fn render_query_tile(_app: &App, r: Rect, frame: &mut Frame) {
     let block = Block::default()
         .borders(Borders::ALL)
         .style(Style::default());
@@ -67,7 +65,7 @@ fn render_query_tile(_app: &mut App, r: Rect, frame: &mut Frame) {
     frame.render_widget(title, r);
 }
 
-fn render_dns_status_tile(_app: &mut App, r: Rect, frame: &mut Frame) {
+fn render_dns_status_tile(_app: &App, r: Rect, frame: &mut Frame) {
     let block = Block::default()
         .borders(Borders::ALL)
         .style(Style::default());
@@ -81,7 +79,7 @@ fn render_dns_status_tile(_app: &mut App, r: Rect, frame: &mut Frame) {
     frame.render_widget(title, r);
 }
 
-fn render_blocking_status_tile(_app: &mut App, r: Rect, frame: &mut Frame) {
+fn render_blocking_status_tile(_app: &App, r: Rect, frame: &mut Frame) {
     let block = Block::default()
         .borders(Borders::ALL)
         .style(Style::default());
@@ -95,7 +93,7 @@ fn render_blocking_status_tile(_app: &mut App, r: Rect, frame: &mut Frame) {
     frame.render_widget(title, r);
 }
 
-fn render_refresh_list_tile(_app: &mut App, r: Rect, frame: &mut Frame) {
+fn render_refresh_list_tile(_app: &App, r: Rect, frame: &mut Frame) {
     let block = Block::default()
         .borders(Borders::ALL)
         .style(Style::default());
