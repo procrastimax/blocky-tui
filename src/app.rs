@@ -60,13 +60,32 @@ impl Default for BlockingStatus {
 /// Lists -> Tile to handle refreshing of blacklists and whitelists
 /// Status -> Tile to show current status of blocky
 /// Query -> Tile handling custom DNS query
-#[derive(Debug, Default, PartialEq, Eq)]
+#[derive(Debug, Default)]
 pub enum CurrentFocus {
     #[default]
-    Status,
-    Lists,
-    Disable,
-    Query,
+    DNSStatus,
+    BlockingStatus,
+    RefreshLists,
+    QueryDNS,
+}
+
+impl CurrentFocus {
+    fn increase(&mut self) {
+        *self = match self {
+            CurrentFocus::DNSStatus => CurrentFocus::BlockingStatus,
+            CurrentFocus::BlockingStatus => CurrentFocus::RefreshLists,
+            CurrentFocus::RefreshLists => CurrentFocus::QueryDNS,
+            CurrentFocus::QueryDNS => CurrentFocus::DNSStatus,
+        }
+    }
+    fn decrease(&mut self) {
+        *self = match self {
+            CurrentFocus::QueryDNS => CurrentFocus::RefreshLists,
+            CurrentFocus::RefreshLists => CurrentFocus::BlockingStatus,
+            CurrentFocus::BlockingStatus => CurrentFocus::DNSStatus,
+            CurrentFocus::DNSStatus => CurrentFocus::QueryDNS,
+        }
+    }
 }
 
 /// Stores the currently shown screen.
@@ -98,7 +117,7 @@ impl Default for App {
         Self {
             running_state: RunningState::Running,
             current_screen: CurrentScreen::Main,
-            current_focus: CurrentFocus::Status,
+            current_focus: CurrentFocus::DNSStatus,
             is_currently_editing: false,
             blocking_status: BlockingStatus::default(),
             dns_status: None,
@@ -126,4 +145,11 @@ impl App {
     pub fn query_dns_server(&mut self, query_request: String) {}
 
     pub fn refresh_blocking_lists(&mut self) {}
+
+    pub fn cycle_focus_up(&mut self) {
+        self.current_focus.increase();
+    }
+    pub fn cycle_focus_down(&mut self) {
+        self.current_focus.decrease();
+    }
 }

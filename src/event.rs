@@ -1,4 +1,4 @@
-use crossterm::event::{self, Event, KeyCode, KeyEvent, MouseEvent};
+use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers, MouseEvent};
 use std::{
     sync::{
         mpsc::{self, SendError},
@@ -88,9 +88,18 @@ impl EventHandler {
                 if !app.is_currently_editing {
                     Some(Message::Quit)
                 } else {
-                    None
+                    Some(Message::Key(key))
                 }
             }
+            KeyCode::Char('c') => {
+                if key.modifiers == KeyModifiers::CONTROL {
+                    Some(Message::Quit)
+                } else {
+                    Some(Message::Key(key))
+                }
+            }
+            KeyCode::Tab => Some(Message::CycleFocusUp),
+            KeyCode::BackTab => Some(Message::CycleFocusDown),
             _ => None,
         }
     }
