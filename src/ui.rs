@@ -2,7 +2,7 @@ use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style, Stylize},
     text::Text,
-    widgets::{Block, BorderType, Borders, Paragraph},
+    widgets::{Block, BorderType, Borders, Padding, Paragraph},
     Frame,
 };
 
@@ -79,6 +79,7 @@ fn render_query_tile(app: &App, r: Rect, frame: &mut Frame) {
 fn render_title(_app: &App, r: Rect, frame: &mut Frame) {
     let block = Block::default()
         .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
         .style(Style::default());
 
     let title = Paragraph::new(Text::styled(
@@ -97,8 +98,9 @@ fn get_focused_tile(title: &str) -> Paragraph<'_> {
             Block::default()
                 .borders(Borders::ALL)
                 .style(Style::default().fg(Color::Yellow))
-                .border_type(BorderType::Rounded),
+                .border_type(BorderType::Thick),
         )
+        .bold()
 }
 
 fn get_unfocused_tile(title: &str) -> Paragraph<'_> {
