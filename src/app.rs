@@ -10,7 +10,7 @@ pub struct App {
     pub current_focus: CurrentFocus,
     /// tracking whether the user is currently inputting something in a text field
     pub is_currently_editing: bool,
-    pub blocking_status: BlockingStatus,
+    pub blocking_status: Option<BlockingStatus>,
     pub dns_status: Option<DNSStatus>,
 }
 
@@ -21,14 +21,13 @@ struct DNSResponse {
 }
 
 /// Represents the state of the blocky DNS server
-///
-/// Healthy -> DNS is properly working
-/// Unreachable -> DNS is not reachable, probably wrong IP/ Hostname/ Port
-/// NoResponse -> DNS is reachable, but does not respond with DNS responses
 #[derive(Debug)]
-enum DNSStatus {
+pub enum DNSStatus {
+    /// Healthy -> DNS is properly working
     Healthy,
-    Unreachable,
+    /// Unhealthy -> received wrong or not working DNS response
+    Unhealthy,
+    /// NoResponse -> DNS is reachable, but does not respond with DNS responses
     NoResponse,
 }
 
@@ -38,20 +37,11 @@ enum DNSStatus {
 /// Disabled -> Blocking is disabled
 #[derive(Debug, PartialEq, Eq)]
 pub struct BlockingStatus {
-    is_blocking_enabled: bool,
+    pub is_blocking_enabled: bool,
     // Number of seconds the blocking is disabled
     // if None than blocking is disabled permanently,
     // if 0 than blocking is enabled
-    unblocking_timer: Option<i32>,
-}
-
-impl Default for BlockingStatus {
-    fn default() -> Self {
-        Self {
-            is_blocking_enabled: true,
-            unblocking_timer: Some(0),
-        }
-    }
+    pub unblocking_timer: Option<i32>,
 }
 
 /// Store the currently focused tile.
@@ -60,7 +50,7 @@ impl Default for BlockingStatus {
 /// Lists -> Tile to handle refreshing of blacklists and whitelists
 /// Status -> Tile to show current status of blocky
 /// Query -> Tile handling custom DNS query
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq, Eq)]
 pub enum CurrentFocus {
     #[default]
     DNSStatus,
@@ -119,7 +109,7 @@ impl Default for App {
             current_screen: CurrentScreen::Main,
             current_focus: CurrentFocus::DNSStatus,
             is_currently_editing: false,
-            blocking_status: BlockingStatus::default(),
+            blocking_status: None,
             dns_status: None,
         }
     }
