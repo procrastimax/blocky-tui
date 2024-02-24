@@ -12,6 +12,13 @@ pub struct App {
     pub is_currently_editing: bool,
     pub blocking_status: Option<BlockingStatus>,
     pub dns_status: Option<DNSStatus>,
+    pub cache_delete_status: Option<CacheDeleteStatus>,
+}
+
+#[derive(Debug)]
+enum CacheDeleteStatus {
+    Success,
+    Failure,
 }
 
 #[derive(Debug, Default)]
@@ -32,30 +39,24 @@ pub enum DNSStatus {
 }
 
 /// Represents the blocking status of blocky
-///
-/// Enabled -> Blocking is enabled
-/// Disabled -> Blocking is disabled
 #[derive(Debug, PartialEq, Eq)]
 pub struct BlockingStatus {
+    /// true if blocking is enabled
     pub is_blocking_enabled: bool,
-    // Number of seconds the blocking is disabled
-    // if None than blocking is disabled permanently,
-    // if 0 than blocking is enabled
-    pub unblocking_timer: Option<i32>,
+    ///  If blocking is temporary disabled: amount of seconds until blocking will be enabled
+    pub unblocking_timer: Option<u32>,
+    /// Disabled group names
+    disabled_groups: Option<String>,
 }
 
 /// Store the currently focused tile.
-///
-/// Disable -> Tile to handle disabling DNS blocking
-/// Lists -> Tile to handle refreshing of blacklists and whitelists
-/// Status -> Tile to show current status of blocky
-/// Query -> Tile handling custom DNS query
-#[derive(Debug, Default, PartialEq, Eq)]
+#[derive(Debug, Default, PartialEq, Eq, Clone)]
 pub enum CurrentFocus {
     #[default]
-    DNSStatus,
+    DNSStatus = 1,
     BlockingStatus,
     RefreshLists,
+    DeleteCache,
     QueryDNS,
 }
 
@@ -64,16 +65,37 @@ impl CurrentFocus {
         *self = match self {
             CurrentFocus::DNSStatus => CurrentFocus::BlockingStatus,
             CurrentFocus::BlockingStatus => CurrentFocus::RefreshLists,
-            CurrentFocus::RefreshLists => CurrentFocus::QueryDNS,
+            CurrentFocus::RefreshLists => CurrentFocus::DeleteCache,
+            CurrentFocus::DeleteCache => CurrentFocus::QueryDNS,
             CurrentFocus::QueryDNS => CurrentFocus::DNSStatus,
         }
     }
     fn decrease(&mut self) {
         *self = match self {
-            CurrentFocus::QueryDNS => CurrentFocus::RefreshLists,
+            CurrentFocus::QueryDNS => CurrentFocus::DeleteCache,
+            CurrentFocus::DeleteCache => CurrentFocus::RefreshLists,
             CurrentFocus::RefreshLists => CurrentFocus::BlockingStatus,
             CurrentFocus::BlockingStatus => CurrentFocus::DNSStatus,
             CurrentFocus::DNSStatus => CurrentFocus::QueryDNS,
+        }
+    }
+    fn set_on_number(&mut self, number: u8) {
+        *self = match number {
+            1 => CurrentFocus::DNSStatus,
+            2 => CurrentFocus::BlockingStatus,
+            3 => CurrentFocus::RefreshLists,
+            4 => CurrentFocus::DeleteCache,
+            5 => CurrentFocus::QueryDNS,
+            _ => CurrentFocus::DNSStatus,
+        }
+    }
+    pub fn get_tile_number(&self) -> u8 {
+        match self {
+            CurrentFocus::DNSStatus => 1,
+            CurrentFocus::BlockingStatus => 2,
+            CurrentFocus::RefreshLists => 3,
+            CurrentFocus::DeleteCache => 4,
+            CurrentFocus::QueryDNS => 5,
         }
     }
 }
@@ -111,6 +133,7 @@ impl Default for App {
             is_currently_editing: false,
             blocking_status: None,
             dns_status: None,
+            cache_delete_status: None,
         }
     }
 }

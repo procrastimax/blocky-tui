@@ -1,27 +1,25 @@
-use std::borrow::Borrow;
-
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style, Stylize},
     text::{Line, Span, Text},
-    widgets::{Block, BorderType, Borders, Padding, Paragraph},
+    widgets::{Block, BorderType, Borders, Paragraph},
     Frame,
 };
 
-use crate::app::{App, BlockingStatus, CurrentFocus, DNSStatus};
+use crate::app::{App, CurrentFocus, DNSStatus};
 
 pub fn render(_app: &App, frame: &mut Frame) {
     // tiles are the individual layout components
     let main_tiles = Layout::default()
         .direction(Direction::Vertical)
         .constraints(vec![
-            Constraint::Percentage(10), // Title Block
-            Constraint::Percentage(80), // Main Tiles
-            Constraint::Percentage(10), // Bottom Tile
+            Constraint::Percentage(20), // Title Block
+            Constraint::Percentage(45), // Main Tiles
+            Constraint::Percentage(35), // Bottom Tile
         ])
         .split(frame.size());
 
-    let app_tiles = Layout::default()
+    let mid_tiles = Layout::default()
         .direction(Direction::Horizontal)
         .constraints(vec![
             Constraint::Percentage(33),
@@ -30,12 +28,19 @@ pub fn render(_app: &App, frame: &mut Frame) {
         ])
         .split(main_tiles[1]);
 
+    let bottom_tiles = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints(vec![Constraint::Percentage(50), Constraint::Percentage(50)])
+        .split(main_tiles[2]);
+
     render_title(_app, main_tiles[0], frame);
 
-    render_dns_status_tile(_app, app_tiles[0], frame);
-    render_blocking_status_tile(_app, app_tiles[1], frame);
-    render_refresh_list_tile(_app, app_tiles[2], frame);
-    render_query_tile(_app, main_tiles[2], frame);
+    render_dns_status_tile(_app, mid_tiles[0], frame);
+    render_blocking_status_tile(_app, mid_tiles[1], frame);
+    render_refresh_list_tile(_app, mid_tiles[2], frame);
+
+    render_query_tile(_app, bottom_tiles[0], frame);
+    render_cache_delete_tile(_app, bottom_tiles[1], frame);
 }
 
 fn render_dns_status_tile(app: &App, r: Rect, frame: &mut Frame) {
@@ -71,14 +76,16 @@ fn render_dns_status_tile(app: &App, r: Rect, frame: &mut Frame) {
         }
     };
 
-    let status_par = Paragraph::new(status_line)
-        .centered()
-        .block(get_block(app, CurrentFocus::DNSStatus).title("DNS Status"));
+    let status_par = Paragraph::new(status_line).centered().block(
+        get_block(app, CurrentFocus::DNSStatus)
+            .title(format!("[{}] DNS Status", CurrentFocus::DNSStatus as u8,)),
+    );
 
     frame.render_widget(status_par, r);
 }
 
 fn render_blocking_status_tile(app: &App, r: Rect, frame: &mut Frame) {
+    // TODO: render seconds and group names if blocking is disabled
     let blocking_line = {
         match &app.blocking_status {
             Some(status) => {
@@ -108,25 +115,43 @@ fn render_blocking_status_tile(app: &App, r: Rect, frame: &mut Frame) {
         }
     };
 
-    let blocking_par = Paragraph::new(blocking_line)
-        .centered()
-        .block(get_block(app, CurrentFocus::BlockingStatus).title("Blocking Status"));
+    let blocking_par = Paragraph::new(blocking_line).centered().block(
+        get_block(app, CurrentFocus::BlockingStatus).title(format!(
+            "[{}] Blocking Status",
+            CurrentFocus::BlockingStatus as u8
+        )),
+    );
 
     frame.render_widget(blocking_par, r);
 }
 
 fn render_refresh_list_tile(app: &App, r: Rect, frame: &mut Frame) {
-    let lists_par = Paragraph::new("Refresh Blocking Lists")
-        .centered()
-        .block(get_block(app, CurrentFocus::RefreshLists).title("Refresh Lists"));
+    let lists_par = Paragraph::new("Refresh Blocking Lists").centered().block(
+        get_block(app, CurrentFocus::RefreshLists).title(format!(
+            "[{}] Refresh Lists",
+            CurrentFocus::RefreshLists as u8
+        )),
+    );
 
     frame.render_widget(lists_par, r);
 }
 
 fn render_query_tile(app: &App, r: Rect, frame: &mut Frame) {
-    let query_par = Paragraph::new("Query DNS")
-        .centered()
-        .block(get_block(app, CurrentFocus::QueryDNS).title("Query DNS"));
+    let query_par = Paragraph::new("Query DNS").centered().block(
+        get_block(app, CurrentFocus::QueryDNS)
+            .title(format!("[{}] Query DNS", CurrentFocus::QueryDNS as u8,)),
+    );
+
+    frame.render_widget(query_par, r);
+}
+
+fn render_cache_delete_tile(app: &App, r: Rect, frame: &mut Frame) {
+    let query_par = Paragraph::new("Delete Cache").centered().block(
+        get_block(app, CurrentFocus::DeleteCache).title(format!(
+            "[{}] Delete Cache",
+            CurrentFocus::DeleteCache as u8
+        )),
+    );
 
     frame.render_widget(query_par, r);
 }
