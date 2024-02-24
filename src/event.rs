@@ -1,22 +1,20 @@
-use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers, MouseEvent};
+use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers};
 use std::{
     sync::{
-        mpsc::{self, SendError},
+        mpsc::{self},
         Arc, RwLock,
     },
     thread,
     time::{Duration, Instant},
 };
 
-use anyhow::Result;
-
 use crate::app::App;
 
 #[derive(Debug, PartialEq)]
 pub enum Message {
-    // TODO: implement entering DNS query input
-    CycleFocusUp,       // Move focus to next tile in UI
-    CycleFocusDown,     // Move focus to previous tile in UI
+    CycleFocusUp,   // Move focus to next tile in UI
+    CycleFocusDown, // Move focus to previous tile in UI
+    JumpToTile(u8),
     EnableDNSBlocking,  // enables DNS blocking
     DisableDNSBlocking, // disable DNS blocking
     SubmitDNSQuery,     // sends DNS query to blocky
@@ -94,6 +92,15 @@ impl EventHandler {
             KeyCode::Char('c') => {
                 if key.modifiers == KeyModifiers::CONTROL {
                     Some(Message::Quit)
+                } else {
+                    Some(Message::Key(key))
+                }
+            }
+            KeyCode::Char(val) => {
+                if !app.is_currently_editing && val.is_numeric() {
+                    // subtract 48 as u8, since the char->u8 conversion converts to ascii code
+                    // so char('1') is 49 in u8
+                    Some(Message::JumpToTile((val as u8) - 48u8))
                 } else {
                     Some(Message::Key(key))
                 }

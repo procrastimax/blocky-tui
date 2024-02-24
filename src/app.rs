@@ -165,4 +165,7 @@ impl App {
     pub fn cycle_focus_down(&mut self) {
         self.current_focus.decrease();
     }
+    pub fn set_tile_to_num(&mut self, num: u8) {
+        self.current_focus.set_on_number(num);
+    }
 }
