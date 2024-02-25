@@ -76,10 +76,11 @@ fn render_dns_status_tile(app: &App, r: Rect, frame: &mut Frame) {
         }
     };
 
-    let status_par = Paragraph::new(status_line).centered().block(
-        get_block(app, CurrentFocus::DNSStatus)
-            .title(format!("[{}] DNS Status", CurrentFocus::DNSStatus as u8,)),
-    );
+    let status_par = Paragraph::new(status_line).centered().block(get_block(
+        app,
+        CurrentFocus::DNSStatus,
+        format!("[{}] Delete Cache", CurrentFocus::DNSStatus as u8),
+    ));
 
     frame.render_widget(status_par, r);
 }
@@ -115,43 +116,43 @@ fn render_blocking_status_tile(app: &App, r: Rect, frame: &mut Frame) {
         }
     };
 
-    let blocking_par = Paragraph::new(blocking_line).centered().block(
-        get_block(app, CurrentFocus::BlockingStatus).title(format!(
-            "[{}] Blocking Status",
-            CurrentFocus::BlockingStatus as u8
-        )),
-    );
+    let blocking_par = Paragraph::new(blocking_line).centered().block(get_block(
+        app,
+        CurrentFocus::BlockingStatus,
+        format!("[{}] Delete Cache", CurrentFocus::BlockingStatus as u8),
+    ));
 
     frame.render_widget(blocking_par, r);
 }
 
 fn render_refresh_list_tile(app: &App, r: Rect, frame: &mut Frame) {
-    let lists_par = Paragraph::new("Refresh Blocking Lists").centered().block(
-        get_block(app, CurrentFocus::RefreshLists).title(format!(
-            "[{}] Refresh Lists",
-            CurrentFocus::RefreshLists as u8
-        )),
-    );
+    let lists_par = Paragraph::new("Refresh Blocking Lists")
+        .centered()
+        .block(get_block(
+            app,
+            CurrentFocus::RefreshLists,
+            format!("[{}] Delete Cache", CurrentFocus::RefreshLists as u8),
+        ));
 
     frame.render_widget(lists_par, r);
 }
 
 fn render_query_tile(app: &App, r: Rect, frame: &mut Frame) {
-    let query_par = Paragraph::new("Query DNS").centered().block(
-        get_block(app, CurrentFocus::QueryDNS)
-            .title(format!("[{}] Query DNS", CurrentFocus::QueryDNS as u8,)),
-    );
+    let query_par = Paragraph::new("Query DNS").centered().block(get_block(
+        app,
+        CurrentFocus::QueryDNS,
+        format!("[{}] Delete Cache", CurrentFocus::QueryDNS as u8),
+    ));
 
     frame.render_widget(query_par, r);
 }
 
 fn render_cache_delete_tile(app: &App, r: Rect, frame: &mut Frame) {
-    let query_par = Paragraph::new("Delete Cache").centered().block(
-        get_block(app, CurrentFocus::DeleteCache).title(format!(
-            "[{}] Delete Cache",
-            CurrentFocus::DeleteCache as u8
-        )),
-    );
+    let query_par = Paragraph::new("Delete Cache").centered().block(get_block(
+        app,
+        CurrentFocus::DeleteCache,
+        format!("[{}] Delete Cache", CurrentFocus::DeleteCache as u8),
+    ));
 
     frame.render_widget(query_par, r);
 }
@@ -171,16 +172,20 @@ fn render_title(_app: &App, r: Rect, frame: &mut Frame) {
     frame.render_widget(title, r);
 }
 
-fn get_block(app: &App, tile: CurrentFocus) -> Block<'_> {
+fn get_block(app: &App, tile: CurrentFocus, block_title: String) -> Block<'_> {
     if app.current_focus == tile {
+        let title = Span::styled(block_title, Style::default().bold());
         Block::default()
             .borders(Borders::ALL)
             .style(Style::default().fg(Color::Yellow))
             .border_type(BorderType::Thick)
+            .title(title)
     } else {
+        let title = Span::styled(block_title, Style::default());
         Block::default()
             .borders(Borders::ALL)
             .style(Style::default().fg(Color::White))
             .border_type(BorderType::Rounded)
+            .title(title)
     }
 }
