@@ -2,7 +2,7 @@ use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style, Stylize},
     text::{Line, Span, Text},
-    widgets::{Block, BorderType, Borders, Paragraph},
+    widgets::{Block, BorderType, Borders, Padding, Paragraph},
     Frame,
 };
 
@@ -66,7 +66,6 @@ fn render_dns_status_tile(app: &App, r: Rect, frame: &mut Frame) {
                 ]
             }
             None => vec![
-                Line::from(""),
                 Line::styled("Not queried", Style::default().fg(Color::White).bold()),
                 Line::styled(
                     "DNS status is not set",
@@ -106,7 +105,6 @@ fn render_blocking_status_tile(app: &App, r: Rect, frame: &mut Frame) {
                 }
             }
             None => vec![
-                Line::from(""),
                 Line::styled("Not queried", Style::default().fg(Color::White).bold()),
                 Line::styled(
                     "Blocking status is not set",
@@ -180,12 +178,14 @@ fn get_block(app: &App, tile: CurrentFocus, block_title: String) -> Block<'_> {
             .style(Style::default().fg(Color::Yellow))
             .border_type(BorderType::Thick)
             .title(title)
+            .padding(Padding::uniform(1))
     } else {
         let title = Span::styled(block_title, Style::default());
         Block::default()
             .borders(Borders::ALL)
             .style(Style::default().fg(Color::White))
             .border_type(BorderType::Rounded)
+            .padding(Padding::uniform(1))
             .title(title)
     }
 }
