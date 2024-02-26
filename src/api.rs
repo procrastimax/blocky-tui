@@ -1,4 +1,5 @@
 use anyhow::Result;
+use http::uri::Port;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use std::time::Duration;
@@ -49,13 +50,13 @@ impl BlockyApi {
     where
         S: Into<String>,
     {
-        let base_uri = base_url
+        let base_uri: Uri = base_url
             .into()
             .parse::<Uri>()
             .expect("could not parse DNS URL to URI");
 
         if base_uri.host().is_some() {
-            let auth = Authority::from_str(base_uri.host().unwrap()).unwrap();
+            let auth = Authority::from_str(base_uri.authority().unwrap().as_ref()).unwrap();
             let base_uri_str = Uri::builder()
                 .scheme(base_uri.scheme_str().unwrap_or("https"))
                 .authority(auth)
@@ -104,28 +105,40 @@ mod tests {
 
     #[test]
     fn test_blocky_api_new_sucess() {
-        let api = BlockyApi::new("https://dns.test.com".to_string(), 53);
+        let api = BlockyApi::new("https://dns.test.com", 53);
         assert_eq!(
             api.url, "https://dns.test.com/api",
             "check if URL parsing works for https://dns.test.com"
         );
 
-        let api = BlockyApi::new("https://dns.test.com/api".to_string(), 53);
+        let api = BlockyApi::new("https://dns.test.com/api", 53);
         assert_eq!(
             api.url, "https://dns.test.com/api",
             "check if URL parsing works for https://dns.test.com/api"
         );
 
-        let api = BlockyApi::new("dns.test.com".to_string(), 53);
+        let api = BlockyApi::new("dns.test.com", 53);
         assert_eq!(
             api.url, "https://dns.test.com/api",
             "check if URL parsing works for dns.test.com"
         );
 
-        let api = BlockyApi::new("9.9.9.9".to_string(), 53);
+        let api = BlockyApi::new("9.9.9.9", 53);
         assert_eq!(
             api.url, "https://9.9.9.9/api",
             "check if URL parsing works for 9.9.9.9"
+        );
+
+        let api = BlockyApi::new("9.9.9.9:4000", 53);
+        assert_eq!(
+            api.url, "https://9.9.9.9:4000/api",
+            "check if URL parsing works for 9.9.9.9:4000"
+        );
+
+        let api = BlockyApi::new("localhost:4000", 53);
+        assert_eq!(
+            api.url, "https://localhost:4000/api",
+            "check if URL parsing works for localhost:4000"
         );
 
         // FIX:: Somehow these URLs is not properly parsed
@@ -140,6 +153,12 @@ mod tests {
         // assert_eq!(
         //     api.url, "https://9.9.9.9/api",
         //     "check if URL parsing works for 9.9.9.9/api"
+        // );
+        //
+        // let api = BlockyApi::new("localhost:4000", 53);
+        // assert_eq!(
+        //     api.url, "https://localhost:4000/api",
+        //     "check if URL parsing works for localhost:4000/api"
         // );
     }
 
