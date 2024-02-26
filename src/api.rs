@@ -2,15 +2,15 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use std::time::Duration;
+use tracing::debug;
 
 use http::{uri::Authority, Uri};
 
-#[derive(Debug)]
 pub struct BlockyApi {
     /// Blocky API Base Url
     pub url: String,
     pub dns_port: u16,
-    client: reqwest::blocking::Client,
+    client: reqwest::Client,
 }
 
 #[derive(Debug, Serialize)]
@@ -63,38 +63,42 @@ impl BlockyApi {
                 .build()
                 .expect("could not build URI")
                 .to_string();
-            BlockyApi {
+            let api = BlockyApi {
                 url: base_uri_str,
                 dns_port,
-                client: reqwest::blocking::Client::builder()
+                client: reqwest::Client::builder()
                     .timeout(Duration::from_secs(10))
                     .build()
                     .unwrap(),
-            }
+            };
+            debug!("created new API handler");
+            api
         } else {
+            // TODO: dont panic here
             panic!("could not read DNS hostname from URL")
         }
     }
 
-    pub fn post_dnsquery(&self, query: DNSQuery) -> Result<DNSResponse> {
-        let query_response = self
-            .client
-            .post(&self.url)
-            .header("Content-Type", "application/json")
-            .body(serde_json::to_string(&query)?)
-            .send();
-        match query_response {
-            Ok(response) => match response.status().as_u16() {
-                200 => Ok(response.json::<DNSResponse>()?),
-                400 => {
-                    panic!("bad request")
-                }
-                _ => {
-                    panic!("received unknown status code")
-                }
-            },
-            Err(e) => Err(e.into()),
-        }
+    pub fn post_dnsquery(&self, _query: DNSQuery) -> Result<DNSResponse> {
+        Err(anyhow::format_err!("Test error"))
+        //let query_response = self
+        //    .client
+        //    .post(&self.url)
+        //    .header("Content-Type", "application/json")
+        //    .body(serde_json::to_string(&query)?)
+        //    .send();
+        //match query_response {
+        //    Ok(response) => match response.status().as_u16() {
+        //        200 => Ok(response.json::<DNSResponse>()?),
+        //        400 => {
+        //            panic!("bad request")
+        //        }
+        //        _ => {
+        //            panic!("received unknown status code")
+        //        }
+        //    },
+        //    Err(e) => Err(e.into()),
+        //}
     }
 }
 

@@ -7,9 +7,9 @@ edition = "2021"
 
 [dependencies]
 anyhow = "^1.0"
-crossterm = "^0.27"
+crossterm = { version = "^0.27", features = ["event-stream"] }
 ratatui = "^0.26"
-reqwest = { version = "^0.11", features = ["blocking", "json"] }
+reqwest = { version = "^0.11", features = ["json"] }
 http = "^1.0"
 serde = { version = "^1.0", features = ["derive"] }
 serde_json = "^1.0"
@@ -18,3 +18,8 @@ tracing = "^0.1"
 tracing-subscriber = { version = "^0.3", features = ["env-filter"] }
 lazy_static = "^1.4"
 human-panic = "^1.2"
+tokio = { version = "^1.36", features = ["full"] }
+tokio-util = "0.7.10"
+futures = "^0.3"
+serde_derive = "^1.0"
+signal-hook = "0.3.17"

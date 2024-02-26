@@ -1,12 +1,16 @@
-use std::thread::sleep;
-use std::time::Duration;
+use anyhow::Result;
+use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
+use tracing::{debug, info};
 
-use anyhow::{bail, Result};
-
+use crate::action::Action;
 use crate::api::{BlockyApi, DNSQuery};
+use crate::tui::{self};
 
 pub struct App {
-    api: BlockyApi,
+    pub api: BlockyApi,
+    pub action_tx: UnboundedSender<Action>,
+    pub action_rx: UnboundedReceiver<Action>,
+    // tui: Tui,
     pub running_state: RunningState,
     pub current_screen: CurrentScreen,
     pub current_focus: CurrentFocus,
@@ -29,7 +33,7 @@ struct DNSResponse {
 }
 
 /// Represents the state of the blocky DNS server
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum DNSStatus {
     /// Healthy -> DNS is properly working
     Healthy,
@@ -125,10 +129,14 @@ pub enum RunningState {
     Done,
 }
 
-impl Default for App {
-    fn default() -> Self {
+impl App {
+    pub fn new() -> Result<Self> {
+        let api = BlockyApi::new("localhost", 53);
+        let (action_tx, action_rx) = unbounded_channel::<Action>();
         let app = Self {
-            api: BlockyApi::new("test.com".to_string(), 53),
+            api,
+            action_tx: action_tx.clone(),
+            action_rx,
             running_state: RunningState::Running,
             current_screen: CurrentScreen::Main,
             current_focus: CurrentFocus::DNSStatus,
@@ -137,34 +145,39 @@ impl Default for App {
             dns_status: None,
             cache_delete_status: None,
         };
-        tracing::debug!("initialized 'App'");
-        app
+        debug!("created new app struct");
+        Ok(app)
     }
-}
+    pub async fn run(&mut self) -> Result<()> {
+        let mut tui = tui::Tui::new()?.frame_rate(3.0);
+        tui.enter()?;
+        info!("starting main app loop");
+        loop {
+            if let Some(evt) = tui.next().await {
+                self.handle_event(&evt)?;
 
-impl App {
-    pub fn new() -> Self {
-        App::default()
+                while let Ok(action) = self.action_rx.try_recv() {
+                    self.update(&action)?;
+                    if let Action::Render = action {
+                        tui.draw(|f| {
+                            self.render(f);
+                        })?;
+                    }
+                }
+            };
+            if self.running_state == RunningState::Done {
+                break;
+            }
+        }
+        tui.exit()?;
+        Ok(())
     }
 
     pub fn change_running_state(&mut self, state: RunningState) {
         self.running_state = state
     }
 
-    pub fn get_dns_state(&mut self) {}
-
-    pub fn get_blocking_state(&mut self) -> Result<BlockingStatus> {
-        bail!(r#"Placeholder"#)
-    }
-
-    pub fn set_blocking_state(&mut self, _status: BlockingStatus) {}
-
-    pub fn query_dns_server(&mut self, _dns_query: DNSQuery) {
-        sleep(Duration::from_secs(5));
-        self.dns_status = Some(DNSStatus::Healthy);
-    }
-
-    pub fn refresh_blocking_lists(&mut self) {}
+    pub fn query_dns_server(&mut self, _dns_query: DNSQuery) {}
 
     pub fn cycle_focus_up(&mut self) {
         self.current_focus.increase();

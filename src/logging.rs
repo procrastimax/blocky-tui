@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use lazy_static::lazy_static;
+use tracing::debug;
 use tracing_error::ErrorLayer;
 use tracing_subscriber::{self, layer::SubscriberExt, util::SubscriberInitExt, Layer};
 
@@ -45,32 +46,6 @@ pub fn initialize_logging() -> Result<()> {
         .with(file_subscriber)
         .with(ErrorLayer::default())
         .init();
-    tracing::debug!("initialized loggin");
+    debug!("initialized logging");
     Ok(())
-}
-
-/// Similar to the `std::dbg!` macro, but generates `tracing` events rather
-/// than printing to stdout.
-///
-/// By default, the verbosity level for the generated events is `DEBUG`, but
-/// this can be customized.
-#[macro_export]
-macro_rules! trace_dbg {
-    (target: $target:expr, level: $level:expr, $ex:expr) => {{
-        match $ex {
-            value => {
-                tracing::event!(target: $target, $level, ?value, stringify!($ex));
-                value
-            }
-        }
-    }};
-    (level: $level:expr, $ex:expr) => {
-        trace_dbg!(target: module_path!(), level: $level, $ex)
-    };
-    (target: $target:expr, $ex:expr) => {
-        trace_dbg!(target: $target, level: tracing::Level::DEBUG, $ex)
-    };
-    ($ex:expr) => {
-        trace_dbg!(level: tracing::Level::DEBUG, $ex)
-    };
 }
