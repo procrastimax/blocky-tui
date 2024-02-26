@@ -1,4 +1,4 @@
-use std::{io, panic};
+use std::io;
 
 use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture},
@@ -26,23 +26,19 @@ impl Tui {
         Self { terminal, events }
     }
 
+    /// enter TUI mode
+    ///
+    /// This function enables terminal raw mode, captures mouse, hides cursor and clears the terminal window.
     pub fn enter(&mut self) -> Result<()> {
         terminal::enable_raw_mode()?;
         crossterm::execute!(io::stdout(), EnterAlternateScreen, EnableMouseCapture)?;
-
-        // TODO: cleaner panic hook with maye loggin? https://ratatui.rs/how-to/develop-apps/panic-hooks/
-        let panic_hook = panic::take_hook();
-        panic::set_hook(Box::new(move |panic| {
-            Self::reset().expect("failed to reset the terminal");
-            panic_hook(panic)
-        }));
 
         self.terminal.hide_cursor()?;
         self.terminal.clear()?;
         Ok(())
     }
 
-    fn reset() -> Result<()> {
+    pub fn reset() -> Result<()> {
         terminal::disable_raw_mode()?;
         crossterm::execute!(io::stdout(), LeaveAlternateScreen, DisableMouseCapture)?;
         Ok(())

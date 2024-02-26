@@ -6,13 +6,16 @@ pub mod tui;
 pub mod ui;
 pub mod update;
 
+use std::panic;
 use std::sync::{Arc, RwLock};
 
 use crate::update::update;
 use anyhow::Result;
 use app::{App, RunningState};
 use event::EventHandler;
+use human_panic::{handle_dump, print_msg, Metadata};
 use ratatui::{backend::CrosstermBackend, Terminal};
+use tracing::error;
 use tui::Tui;
 
 use self::api::BlockyApi;
@@ -20,12 +23,12 @@ use self::logging::initialize_logging;
 
 fn main() -> Result<()> {
     initialize_logging()?;
+    initialize_panic_handler()?;
 
     let app = App::new();
 
     let app_arc = Arc::new(RwLock::new(app));
 
-    // TODO: add more loggin
     let backend = CrosstermBackend::new(std::io::stdout());
 
     let terminal = Terminal::new(backend)?;
@@ -48,5 +51,31 @@ fn main() -> Result<()> {
     }
 
     tui.exit()?;
+    Ok(())
+}
+
+fn initialize_panic_handler() -> Result<()> {
+    let panic_hook = panic::take_hook();
+    panic::set_hook(Box::new(move |panic_info| {
+        if let Err(r) = crate::tui::Tui::reset() {
+            error!("Unable to reset terminal to default state {:?}", r);
+        }
+        let msg = format!(
+            "{:?} at {:?}",
+            panic_info.payload().downcast_ref::<&str>(),
+            panic_info.location()
+        );
+        eprintln!("{}", msg);
+        let meta = Metadata {
+            version: env!("CARGO_PKG_VERSION").into(),
+            name: env!("CARGO_PKG_NAME").into(),
+            authors: env!("CARGO_PKG_AUTHORS").replace(':', ", ").into(),
+            homepage: env!("CARGO_PKG_HOMEPAGE").into(),
+        };
+        let file_path = handle_dump(&meta, panic_info);
+        print_msg(file_path, &meta).expect("human-panic: printing error message to console failed");
+        tracing::error!("Error: {}", msg);
+        panic_hook(panic_info)
+    }));
     Ok(())
 }

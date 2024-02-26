@@ -4,9 +4,7 @@ use std::time::Duration;
 use anyhow::{bail, Result};
 
 use crate::api::{BlockyApi, DNSQuery};
-use crate::trace_dbg;
 
-#[derive(Debug)]
 pub struct App {
     api: BlockyApi,
     pub running_state: RunningState,
@@ -19,13 +17,12 @@ pub struct App {
     pub cache_delete_status: Option<CacheDeleteStatus>,
 }
 
-#[derive(Debug)]
-enum CacheDeleteStatus {
+pub enum CacheDeleteStatus {
     Success,
     Failure,
 }
 
-#[derive(Debug, Default)]
+#[derive(Default)]
 struct DNSResponse {
     status: u32,
     message: String,
@@ -160,9 +157,9 @@ impl App {
         bail!(r#"Placeholder"#)
     }
 
-    pub fn set_blocking_state(&mut self, status: BlockingStatus) {}
+    pub fn set_blocking_state(&mut self, _status: BlockingStatus) {}
 
-    pub fn query_dns_server(&mut self, dns_query: DNSQuery) {
+    pub fn query_dns_server(&mut self, _dns_query: DNSQuery) {
         sleep(Duration::from_secs(5));
         self.dns_status = Some(DNSStatus::Healthy);
     }

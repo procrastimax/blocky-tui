@@ -17,10 +17,10 @@ pub fn update(app: &mut App, api: &BlockyApi, msg: Message) -> Option<Message> {
                     query_type: "A".to_string(),
                 });
                 match dns_response {
-                    Ok(response) => {
+                    Ok(_response) => {
                         app.dns_status = Some(DNSStatus::Healthy);
                     }
-                    Err(e) => {
+                    Err(_e) => {
                         app.dns_status = Some(DNSStatus::NoResponse);
                     }
                 }

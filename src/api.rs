@@ -1,5 +1,4 @@
 use anyhow::Result;
-use http::uri::Port;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use std::time::Duration;
