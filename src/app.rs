@@ -4,6 +4,7 @@ use std::time::Duration;
 use anyhow::{bail, Result};
 
 use crate::api::{BlockyApi, DNSQuery};
+use crate::trace_dbg;
 
 #[derive(Debug)]
 pub struct App {
@@ -129,7 +130,7 @@ pub enum RunningState {
 
 impl Default for App {
     fn default() -> Self {
-        Self {
+        let app = Self {
             api: BlockyApi::new("test.com".to_string(), 53),
             running_state: RunningState::Running,
             current_screen: CurrentScreen::Main,
@@ -138,7 +139,9 @@ impl Default for App {
             blocking_status: None,
             dns_status: None,
             cache_delete_status: None,
-        }
+        };
+        tracing::debug!("initialized 'App'");
+        app
     }
 }
 

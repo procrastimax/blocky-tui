@@ -30,6 +30,7 @@ impl Tui {
         terminal::enable_raw_mode()?;
         crossterm::execute!(io::stdout(), EnterAlternateScreen, EnableMouseCapture)?;
 
+        // TODO: cleaner panic hook with maye loggin? https://ratatui.rs/how-to/develop-apps/panic-hooks/
         let panic_hook = panic::take_hook();
         panic::set_hook(Box::new(move |panic| {
             Self::reset().expect("failed to reset the terminal");

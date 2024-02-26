@@ -1,6 +1,7 @@
 mod api;
 pub mod app;
 pub mod event;
+pub mod logging;
 pub mod tui;
 pub mod ui;
 pub mod update;
@@ -15,15 +16,20 @@ use ratatui::{backend::CrosstermBackend, Terminal};
 use tui::Tui;
 
 use self::api::BlockyApi;
+use self::logging::initialize_logging;
 
 fn main() -> Result<()> {
+    initialize_logging()?;
+
     let app = App::new();
 
     let app_arc = Arc::new(RwLock::new(app));
 
-    // init terminal user interface
+    // TODO: add more loggin
     let backend = CrosstermBackend::new(std::io::stdout());
+
     let terminal = Terminal::new(backend)?;
+
     let api = BlockyApi::new("localhost", 53);
 
     let app_clone = Arc::clone(&app_arc);
