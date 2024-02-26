@@ -1,10 +1,13 @@
-// TODO: implement refresh list refresh feature
-// TODO: implement disable blocking for specific groups
+use std::thread::sleep;
+use std::time::Duration;
 
 use anyhow::{bail, Result};
 
+use crate::api::{BlockyApi, DNSQuery};
+
 #[derive(Debug)]
 pub struct App {
+    api: BlockyApi,
     pub running_state: RunningState,
     pub current_screen: CurrentScreen,
     pub current_focus: CurrentFocus,
@@ -127,6 +130,7 @@ pub enum RunningState {
 impl Default for App {
     fn default() -> Self {
         Self {
+            api: BlockyApi::new("test.com".to_string(), 53),
             running_state: RunningState::Running,
             current_screen: CurrentScreen::Main,
             current_focus: CurrentFocus::DNSStatus,
@@ -155,7 +159,10 @@ impl App {
 
     pub fn set_blocking_state(&mut self, status: BlockingStatus) {}
 
-    pub fn query_dns_server(&mut self, query_request: String) {}
+    pub fn query_dns_server(&mut self, dns_query: DNSQuery) {
+        sleep(Duration::from_secs(5));
+        self.dns_status = Some(DNSStatus::Healthy);
+    }
 
     pub fn refresh_blocking_lists(&mut self) {}
 

@@ -25,7 +25,6 @@ pub enum Message {
 }
 
 /// Terminal Event/ Message Handler
-#[derive(Debug)]
 pub struct EventHandler {
     /// Message sender channel.
     sender: mpsc::Sender<Message>,
@@ -92,6 +91,13 @@ impl EventHandler {
             KeyCode::Char('c') => {
                 if key.modifiers == KeyModifiers::CONTROL {
                     Some(Message::Quit)
+                } else {
+                    Some(Message::Key(key))
+                }
+            }
+            KeyCode::Char('R') => {
+                if !app.is_currently_editing {
+                    Some(Message::UpdateTile)
                 } else {
                     Some(Message::Key(key))
                 }

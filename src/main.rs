@@ -1,29 +1,33 @@
+mod api;
 pub mod app;
 pub mod event;
 pub mod tui;
 pub mod ui;
 pub mod update;
 
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, RwLock};
 
+use crate::update::update;
 use anyhow::Result;
 use app::{App, RunningState};
-use event::{EventHandler, Message};
+use event::EventHandler;
 use ratatui::{backend::CrosstermBackend, Terminal};
 use tui::Tui;
-use update::update;
+
+use self::api::BlockyApi;
 
 fn main() -> Result<()> {
-    let mut app = App::new();
+    let app = App::new();
 
     let app_arc = Arc::new(RwLock::new(app));
 
     // init terminal user interface
     let backend = CrosstermBackend::new(std::io::stdout());
     let terminal = Terminal::new(backend)?;
+    let api = BlockyApi::new("localhost", 53);
 
     let app_clone = Arc::clone(&app_arc);
-    let events = EventHandler::new(250, app_clone); // TODO: experiment on tick_rate
+    let events = EventHandler::new(250, app_clone); // HACK: experiment on tick_rate
 
     let mut tui = Tui::new(terminal, events);
     tui.enter()?;
@@ -33,7 +37,7 @@ fn main() -> Result<()> {
 
         let mut msg = tui.events.next();
         while msg.is_some() {
-            msg = update(&mut app_arc.write().unwrap(), msg.unwrap());
+            msg = update(&mut app_arc.write().unwrap(), &api, msg.unwrap());
         }
     }
 
