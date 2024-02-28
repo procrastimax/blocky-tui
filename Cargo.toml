@@ -10,7 +10,6 @@ anyhow = "^1.0"
 crossterm = { version = "^0.27", features = ["event-stream"] }
 ratatui = "^0.26"
 reqwest = { version = "^0.11", features = ["json"] }
-http = "^1.0"
 serde = { version = "^1.0", features = ["derive"] }
 serde_json = "^1.0"
 tracing-error = "^0.2"
@@ -21,3 +20,5 @@ human-panic = "^1.2"
 tokio = { version = "^1.36", features = ["full"] }
 tokio-util = "0.7.10"
 futures = "^0.3"
+url = "^2.5"
+rustdns = "0.4.0"

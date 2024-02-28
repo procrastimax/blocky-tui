@@ -2,6 +2,7 @@ pub mod action;
 pub mod api;
 pub mod app;
 pub mod logging;
+pub mod port_check;
 pub mod tui;
 pub mod ui;
 pub mod update;
@@ -18,6 +19,8 @@ use self::logging::initialize_logging;
 #[tokio::main]
 async fn main() -> Result<()> {
     initialize_logging()?;
+    info!("----------- STARTING BLOCKY TUI -----------");
+
     initialize_panic_handler()?;
 
     let mut app = App::new()?;

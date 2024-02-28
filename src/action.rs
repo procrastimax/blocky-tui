@@ -2,7 +2,8 @@ use anyhow::Result;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use tracing::debug;
 
-use crate::app::{App, DNSStatus};
+use crate::app::{ApiQueryResponseState, App};
+use crate::port_check::PortState;
 use crate::tui::Event;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -17,14 +18,18 @@ pub enum Action {
     RefreshLists,       // Refresh blocking lists
     UpdateTile,         // Update current Tile (or all app information)
     Key(KeyEvent),
-    SetDNSStatus(DNSStatus),
+    SetDNSStatus(ApiQueryResponseState),
+    SetUDPPortState(PortState),
+    SetTCPPortState(PortState),
     Render,
     Quit, // quits application
 }
 
 impl App {
     pub fn handle_event(&self, event: &Event) -> Result<()> {
-        debug!("handling new event: {event:?}");
+        if *event != Event::Render {
+            debug!("handling new event: {event:?}");
+        }
         match event {
             Event::Init => self.action_tx.send(Action::Init)?,
             Event::Key(key) => self.handle_key(key)?,

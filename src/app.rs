@@ -3,11 +3,13 @@ use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tracing::{debug, info};
 
 use crate::action::Action;
-use crate::api::{BlockyApi, DNSQuery};
+use crate::api::ApiClient;
+use crate::port_check::PortState;
 use crate::tui::{self};
 
+#[derive(Debug)]
 pub struct App {
-    pub api: BlockyApi,
+    pub api: ApiClient,
     pub action_tx: UnboundedSender<Action>,
     pub action_rx: UnboundedReceiver<Action>,
     // tui: Tui,
@@ -17,24 +19,38 @@ pub struct App {
     /// tracking whether the user is currently inputting something in a text field
     pub is_currently_editing: bool,
     pub blocking_status: Option<BlockingStatus>,
-    pub dns_status: Option<DNSStatus>,
+    pub dns_status: DNSStatus,
     pub cache_delete_status: Option<CacheDeleteStatus>,
 }
 
+#[derive(Debug)]
 pub enum CacheDeleteStatus {
     Success,
     Failure,
 }
 
-#[derive(Default)]
-struct DNSResponse {
-    status: u32,
-    message: String,
+/// Represents the state of the blocky DNS server
+///
+/// Keeps track of the TCP port state, UDP port state and the result of an API DNS Query
+#[derive(Debug)]
+pub struct DNSStatus {
+    pub query_response_state: Option<ApiQueryResponseState>,
+    pub tcp_port_state: Option<PortState>,
+    pub udp_port_state: Option<PortState>,
 }
 
-/// Represents the state of the blocky DNS server
+impl Default for DNSStatus {
+    fn default() -> Self {
+        Self {
+            query_response_state: None,
+            tcp_port_state: None,
+            udp_port_state: None,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum DNSStatus {
+pub enum ApiQueryResponseState {
     /// Healthy -> DNS is properly working
     Healthy,
     /// Unhealthy -> received wrong or not working DNS response
@@ -131,7 +147,7 @@ pub enum RunningState {
 
 impl App {
     pub fn new() -> Result<Self> {
-        let api = BlockyApi::new("localhost", 53);
+        let api = ApiClient::new("http://localhost", 4000, 1234)?;
         let (action_tx, action_rx) = unbounded_channel::<Action>();
         let app = Self {
             api,
@@ -142,7 +158,7 @@ impl App {
             current_focus: CurrentFocus::DNSStatus,
             is_currently_editing: false,
             blocking_status: None,
-            dns_status: None,
+            dns_status: DNSStatus::default(),
             cache_delete_status: None,
         };
         debug!("created new app struct");
@@ -176,8 +192,6 @@ impl App {
     pub fn change_running_state(&mut self, state: RunningState) {
         self.running_state = state
     }
-
-    pub fn query_dns_server(&mut self, _dns_query: DNSQuery) {}
 
     pub fn cycle_focus_up(&mut self) {
         self.current_focus.increase();

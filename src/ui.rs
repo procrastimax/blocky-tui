@@ -2,11 +2,14 @@ use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Style, Stylize},
     text::{Line, Span, Text},
-    widgets::{Block, BorderType, Borders, Padding, Paragraph, Wrap},
+    widgets::{Block, BorderType, Borders, Paragraph, Wrap},
     Frame,
 };
 
-use crate::app::{App, CurrentFocus, DNSStatus};
+use crate::{
+    app::{ApiQueryResponseState, App, CurrentFocus},
+    port_check::PortState,
+};
 
 impl App {
     pub fn render(&self, frame: &mut Frame) {
@@ -45,46 +48,123 @@ impl App {
     }
 
     fn render_dns_status_tile(&self, r: Rect, frame: &mut Frame) {
-        let status_line = {
-            match self.dns_status {
-                Some(DNSStatus::Healthy) => vec![
-                    Line::from(Span::styled("Healthy", Style::default().fg(Color::Green))),
-                    Line::from(Span::from("DNS is reachable and healty")),
-                ],
-                Some(DNSStatus::Unhealthy) => {
-                    vec![
-                        Line::from(Span::styled(
-                            "Unhealthy",
-                            Style::default().fg(Color::Magenta),
-                        )),
-                        Line::from(Span::from("DNS is reachable but unhealthy")),
-                    ]
-                }
-                Some(DNSStatus::NoResponse) => {
-                    vec![
-                        Line::from(Span::styled("No Response", Style::default().fg(Color::Red))),
-                        Line::styled(
-                            "DNS is not reachable",
-                            Style::default().fg(Color::White).italic(),
-                        ),
-                    ]
-                }
-                None => vec![
-                    Line::styled("Not queried", Style::default().fg(Color::White).bold()),
+        let status_line = match self.dns_status.query_response_state {
+            Some(ApiQueryResponseState::Healthy) => {
+                vec![
+                    Line::from(Span::styled(
+                        "Healthy",
+                        Style::default().fg(Color::Green).bold(),
+                    )),
+                    Line::from(Span::styled(
+                        "API successfully answered DNS query",
+                        Style::default().fg(Color::White).italic(),
+                    )),
+                ]
+            }
+            Some(ApiQueryResponseState::Unhealthy) => {
+                vec![
+                    Line::from(Span::styled(
+                        "Unhealthy",
+                        Style::default().fg(Color::Magenta).bold(),
+                    )),
+                    Line::from(Span::from("API responded with error message")),
+                ]
+            }
+            Some(ApiQueryResponseState::NoResponse) => {
+                vec![
+                    Line::from(Span::styled(
+                        "No Response",
+                        Style::default().fg(Color::Red).bold(),
+                    )),
                     Line::styled(
-                        "DNS status is not set",
+                        "API is not answering",
                         Style::default().fg(Color::White).italic(),
                     ),
-                ],
+                ]
+            }
+            None => {
+                vec![
+                    Line::styled("Not queried", Style::default().fg(Color::White).bold()),
+                    Line::styled(
+                        "DNS state is not yet set",
+                        Style::default().fg(Color::White).italic(),
+                    ),
+                ]
             }
         };
 
-        let status_details = {
-            vec![
-                Line::from("- [] DNS Domain is reachable"),
-                Line::from("- [] DNS Port is open"),
-                Line::from("- [] Received answer from DNS Server"),
-            ]
+        let tcp_port_line = match self.dns_status.tcp_port_state {
+            Some(PortState::Open) => {
+                let marker = Span::styled("✓", Style::default().fg(Color::Green));
+                Line::from(vec![
+                    "- [".into(),
+                    marker,
+                    format!("] API port (tcp:{}) is open", self.api.api_port).into(),
+                ])
+            }
+            Some(PortState::Closed) => {
+                let marker = Span::styled("🗙", Style::default().fg(Color::Red));
+                Line::from(vec![
+                    "- [".into(),
+                    marker,
+                    format!("] API port (tcp:{}) is closed", self.api.api_port).into(),
+                ])
+            }
+            Some(PortState::Error) => {
+                let marker = Span::styled("🗙", Style::default().fg(Color::Red));
+                Line::from(vec![
+                    "- [".into(),
+                    marker,
+                    format!("] error when probing API port (tcp:{})", self.api.api_port).into(),
+                ])
+            }
+            None => {
+                let marker = Span::styled("?", Style::default().fg(Color::Yellow));
+                Line::from(vec![
+                    "- [".into(),
+                    marker,
+                    format!("] API port (tcp:{}) not yet probed", self.api.api_port).into(),
+                ])
+            }
+        };
+
+        let udp_port_line = match self.dns_status.udp_port_state {
+            Some(PortState::Open) => {
+                let marker = Span::styled("✓", Style::default().fg(Color::Green));
+                Line::from(vec![
+                    "- [".into(),
+                    marker,
+                    format!(
+                        "] DNS port (udp:{}) is open and responding",
+                        self.api.dns_port
+                    )
+                    .into(),
+                ])
+            }
+            Some(PortState::Closed) => {
+                let marker = Span::styled("🗙", Style::default().fg(Color::Red));
+                Line::from(vec![
+                    "- [".into(),
+                    marker,
+                    format!("] DNS port (udp:{}) is not answering", self.api.dns_port).into(),
+                ])
+            }
+            Some(PortState::Error) => {
+                let marker = Span::styled("🗙", Style::default().fg(Color::Red));
+                Line::from(vec![
+                    "- [".into(),
+                    marker,
+                    format!("] error when probing DNS port (udp:{})", self.api.dns_port).into(),
+                ])
+            }
+            None => {
+                let marker = Span::styled("?", Style::default().fg(Color::Yellow));
+                Line::from(vec![
+                    "- [".into(),
+                    marker,
+                    format!("] DNS port (udp:{}) not yet probed", self.api.dns_port).into(),
+                ])
+            }
         };
 
         let block = self.get_block(
@@ -93,17 +173,21 @@ impl App {
         );
         let split_layout = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Percentage(40), Constraint::Percentage(60)])
+            .constraints([
+                Constraint::Percentage(10),
+                Constraint::Percentage(30),
+                Constraint::Percentage(60),
+            ])
             .split(block.inner(r));
         frame.render_widget(block, r);
 
         let status_par = Paragraph::new(status_line)
             .centered()
             .wrap(Wrap { trim: true });
-        frame.render_widget(status_par, split_layout[0]);
+        frame.render_widget(status_par, split_layout[1]);
 
-        let area = self.centered_rect(50, 99, split_layout[1]);
-        let details_par = Paragraph::new(status_details)
+        let area = self.centered_rect(70, 99, split_layout[2]);
+        let details_par = Paragraph::new(vec![tcp_port_line, udp_port_line])
             .left_aligned()
             .wrap(Wrap { trim: true })
             .style(Style::default().fg(Color::White));
@@ -204,14 +288,12 @@ impl App {
                 .style(Style::default().fg(Color::Yellow))
                 .border_type(BorderType::Thick)
                 .title(title)
-                .padding(Padding::uniform(3))
         } else {
             let title = Span::styled(block_title, Style::default());
             Block::default()
                 .borders(Borders::ALL)
                 .style(Style::default().fg(Color::White))
                 .border_type(BorderType::Rounded)
-                .padding(Padding::uniform(3))
                 .title(title)
         }
     }

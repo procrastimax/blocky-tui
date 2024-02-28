@@ -1,178 +1,121 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
+
 use std::time::Duration;
-use tracing::debug;
+use tracing::{debug, error};
+use url::Url;
 
-use http::{uri::Authority, Uri};
-
-pub struct BlockyApi {
+#[derive(Debug, Clone)]
+pub struct ApiClient {
     /// Blocky API Base Url
-    pub url: String,
+    pub url: Url,
     pub dns_port: u16,
+    pub api_port: u16,
     client: reqwest::Client,
 }
 
-#[derive(Debug, Serialize)]
-pub struct DNSQueryR<S>
-where
-    S: Into<String>,
-{
-    pub query: S,
-    pub query_type: S,
+#[derive(Debug, Serialize, Clone)]
+pub struct DNSQuery {
+    pub query: &'static str,
+    #[serde(rename = "type")]
+    pub query_type: &'static str,
 }
 
-pub type DNSQuery = DNSQueryR<String>;
-
-// FIX: use this enum instead of the string
-//
-// #[derive(Default, Debug, Serialize)]
-// enum DNSType {
-// TODO: add more query types
-//
-//     #[default]
-//     A,
-//     AAA,
-//     CNAME,
-// }
-
-#[derive(Debug, Serialize, Deserialize)]
+#[allow(non_snake_case)]
+#[derive(Default, Debug, Serialize, Deserialize)]
 pub struct DNSResponse {
-    reason: String,
-    response: String,
-    response_type: String,
-    return_code: String,
+    pub reason: String,
+    pub response: String,
+    pub responseType: String,
+    pub returnCode: String,
 }
 
-impl BlockyApi {
-    pub fn new<S>(base_url: S, dns_port: u16) -> Self
-    where
-        S: Into<String>,
-    {
-        let base_uri: Uri = base_url
-            .into()
-            .parse::<Uri>()
-            .expect("could not parse DNS URL to URI");
-
-        if base_uri.host().is_some() {
-            let auth = Authority::from_str(base_uri.authority().unwrap().as_ref()).unwrap();
-            let base_uri_str = Uri::builder()
-                .scheme(base_uri.scheme_str().unwrap_or("https"))
-                .authority(auth)
-                .path_and_query("/api")
-                .build()
-                .expect("could not build URI")
-                .to_string();
-            let api = BlockyApi {
-                url: base_uri_str,
-                dns_port,
-                client: reqwest::Client::builder()
-                    .timeout(Duration::from_secs(10))
-                    .build()
-                    .unwrap(),
-            };
-            debug!("created new API handler");
-            api
-        } else {
-            // TODO: dont panic here
-            panic!("could not read DNS hostname from URL")
+impl ApiClient {
+    pub fn new(base_url: &'static str, api_port: u16, dns_port: u16) -> Result<Self> {
+        let mut url = Url::parse(base_url)?;
+        match url.scheme() {
+            "http" | "https" => {}
+            "" => {
+                if url.set_scheme("https").is_err() {
+                    return Err(anyhow!("could not set Blocky API URL scheme to 'https'"));
+                };
+            }
+            _ => {
+                let err = anyhow!("Blocky API URL {} is not http or https", base_url);
+                error!(%err);
+                return Err(err);
+            }
         }
+        url.set_port(Some(api_port)).or(Err(anyhow!(
+            "could not set API port to API URL -> is the URL valid? {base_url}"
+        )))?;
+        // reset path if any
+        url.set_path("");
+        let api = ApiClient {
+            url,
+            dns_port,
+            api_port,
+            client: reqwest::Client::builder()
+                .timeout(Duration::from_secs(10))
+                .build()
+                .unwrap(),
+        };
+        debug!("created new API client: {api:?}");
+        Ok(api)
     }
 
-    pub fn post_dnsquery(&self, _query: DNSQuery) -> Result<DNSResponse> {
-        Err(anyhow::format_err!("Test error"))
-        //let query_response = self
-        //    .client
-        //    .post(&self.url)
-        //    .header("Content-Type", "application/json")
-        //    .body(serde_json::to_string(&query)?)
-        //    .send();
-        //match query_response {
-        //    Ok(response) => match response.status().as_u16() {
-        //        200 => Ok(response.json::<DNSResponse>()?),
-        //        400 => {
-        //            panic!("bad request")
-        //        }
-        //        _ => {
-        //            panic!("received unknown status code")
-        //        }
-        //    },
-        //    Err(e) => Err(e.into()),
-        //}
+    pub async fn post_dnsquery(&self, query: DNSQuery) -> Result<DNSResponse> {
+        debug!("posting DNS query: {query:?}");
+        let url = self.url.join("api/query")?;
+        let resp = self
+            .client
+            .post(url.to_string())
+            .header("Content-Type", "application/json")
+            .json(&query)
+            .send()
+            .await?
+            .json::<DNSResponse>()
+            .await?;
+        debug!("received DNS response: {resp:?}");
+        Ok(resp)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::api::ApiClient;
+    use anyhow::Result;
 
     #[test]
-    fn test_blocky_api_new_sucess() {
-        let api = BlockyApi::new("https://dns.test.com", 53);
+    fn test_domain_name_parsing() -> Result<()> {
+        let api = ApiClient::new("https://dns.test.com", 4000, 53)?;
         assert_eq!(
-            api.url, "https://dns.test.com/api",
+            api.url.to_string(),
+            "https://dns.test.com:4000/",
             "check if URL parsing works for https://dns.test.com"
         );
 
-        let api = BlockyApi::new("https://dns.test.com/api", 53);
+        let api = ApiClient::new("https://dns.test.com:1234", 4000, 53)?;
         assert_eq!(
-            api.url, "https://dns.test.com/api",
+            api.url.to_string(),
+            "https://dns.test.com:4000/",
+            "check if URL parsing works for https://dns.test.com"
+        );
+
+        let api = ApiClient::new("https://dns.test.com/api", 4000, 53)?;
+        assert_eq!(
+            api.url.to_string(),
+            "https://dns.test.com:4000/",
             "check if URL parsing works for https://dns.test.com/api"
         );
 
-        let api = BlockyApi::new("dns.test.com", 53);
+        let api = ApiClient::new("https://dns.test.com:1234/api", 4000, 53)?;
         assert_eq!(
-            api.url, "https://dns.test.com/api",
-            "check if URL parsing works for dns.test.com"
+            api.url.to_string(),
+            "https://dns.test.com:4000/",
+            "check if URL parsing works for https://dns.test.com:4000/api"
         );
 
-        let api = BlockyApi::new("9.9.9.9", 53);
-        assert_eq!(
-            api.url, "https://9.9.9.9/api",
-            "check if URL parsing works for 9.9.9.9"
-        );
-
-        let api = BlockyApi::new("9.9.9.9:4000", 53);
-        assert_eq!(
-            api.url, "https://9.9.9.9:4000/api",
-            "check if URL parsing works for 9.9.9.9:4000"
-        );
-
-        let api = BlockyApi::new("localhost:4000", 53);
-        assert_eq!(
-            api.url, "https://localhost:4000/api",
-            "check if URL parsing works for localhost:4000"
-        );
-
-        // FIX:: Somehow these URLs is not properly parsed
-        //
-        // let api = BlockyApi::new("dns.test.com/api".to_string(), 53);
-        // assert_eq!(
-        //     api.base_url, "https://dns.test.com/api",
-        //     "check if URL parsing works for dns.test.com/api"
-        // );
-        //
-        // let api = BlockyApi::new("9.9.9.9/api".to_string(), 53);
-        // assert_eq!(
-        //     api.url, "https://9.9.9.9/api",
-        //     "check if URL parsing works for 9.9.9.9/api"
-        // );
-        //
-        // let api = BlockyApi::new("localhost:4000", 53);
-        // assert_eq!(
-        //     api.url, "https://localhost:4000/api",
-        //     "check if URL parsing works for localhost:4000/api"
-        // );
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_blocky_api_new_failure() {
-        BlockyApi::new("".to_string(), 53);
-        BlockyApi::new("dns".to_string(), 53);
-        BlockyApi::new("dns/api".to_string(), 53);
-        BlockyApi::new("htttp://dns.test.com".to_string(), 53);
-        BlockyApi::new("http:///dns.test.com".to_string(), 53);
-        BlockyApi::new("http://dns.test.com//api".to_string(), 53);
+        Ok(())
     }
 }
