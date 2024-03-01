@@ -178,7 +178,7 @@ impl App {
 
         let block = self.get_block(
             CurrentFocus::DNSStatus,
-            format!("[{}] Delete Cache", CurrentFocus::DNSStatus as u8),
+            format!("[{}] DNS Status", CurrentFocus::DNSStatus as u8),
         );
         let split_layout = Layout::default()
             .direction(Direction::Vertical)
@@ -237,7 +237,7 @@ impl App {
             .centered()
             .block(self.get_block(
                 CurrentFocus::BlockingStatus,
-                format!("[{}] Delete Cache", CurrentFocus::BlockingStatus as u8),
+                format!("[{}] Blocking Status", CurrentFocus::BlockingStatus as u8),
             ));
 
         frame.render_widget(blocking_par, r);
@@ -248,7 +248,7 @@ impl App {
             .centered()
             .block(self.get_block(
                 CurrentFocus::RefreshLists,
-                format!("[{}] Delete Cache", CurrentFocus::RefreshLists as u8),
+                format!("[{}] Refresh Lists", CurrentFocus::RefreshLists as u8),
             ));
 
         frame.render_widget(lists_par, r);
@@ -257,7 +257,7 @@ impl App {
     fn render_query_tile(&self, r: Rect, frame: &mut Frame) {
         let query_par = Paragraph::new("Query DNS").centered().block(self.get_block(
             CurrentFocus::QueryDNS,
-            format!("[{}] Delete Cache", CurrentFocus::QueryDNS as u8),
+            format!("[{}] Query DNS", CurrentFocus::QueryDNS as u8),
         ));
 
         frame.render_widget(query_par, r);
