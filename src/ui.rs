@@ -48,48 +48,34 @@ impl App {
     }
 
     fn render_dns_status_tile(&self, r: Rect, frame: &mut Frame) {
-        let status_line = match self.dns_status.query_response_state {
+        let api_status_line = match self.dns_status.query_response_state {
             Some(ApiQueryResponseState::Healthy) => {
-                vec![
-                    Line::from(Span::styled(
-                        "Healthy",
-                        Style::default().fg(Color::Green).bold(),
-                    )),
-                    Line::from(Span::styled(
-                        "API successfully answered DNS query",
-                        Style::default().fg(Color::White).italic(),
-                    )),
-                ]
+                let marker = Span::styled("✓", Style::default().fg(Color::Green));
+                Line::from(vec![
+                    "- [".into(),
+                    marker,
+                    "] received sucessfull API query response".into(),
+                ])
             }
             Some(ApiQueryResponseState::Unhealthy) => {
-                vec![
-                    Line::from(Span::styled(
-                        "Unhealthy",
-                        Style::default().fg(Color::Magenta).bold(),
-                    )),
-                    Line::from(Span::from("API responded with error message")),
-                ]
+                let marker = Span::styled("🗙", Style::default().fg(Color::Red));
+                Line::from(vec![
+                    "- [".into(),
+                    marker,
+                    "] received error from API query response".into(),
+                ])
             }
             Some(ApiQueryResponseState::NoResponse) => {
-                vec![
-                    Line::from(Span::styled(
-                        "No Response",
-                        Style::default().fg(Color::Red).bold(),
-                    )),
-                    Line::styled(
-                        "API is not answering",
-                        Style::default().fg(Color::White).italic(),
-                    ),
-                ]
+                let marker = Span::styled("🗙", Style::default().fg(Color::Red));
+                Line::from(vec![
+                    "- [".into(),
+                    marker,
+                    "] did not receive an API response".into(),
+                ])
             }
             None => {
-                vec![
-                    Line::styled("Not queried", Style::default().fg(Color::White).bold()),
-                    Line::styled(
-                        "DNS state is not yet set",
-                        Style::default().fg(Color::White).italic(),
-                    ),
-                ]
+                let marker = Span::styled("?", Style::default().fg(Color::Yellow));
+                Line::from(vec!["- [".into(), marker, "] API not yet probed".into()])
             }
         };
 
@@ -167,6 +153,29 @@ impl App {
             }
         };
 
+        let status_line;
+        if self.dns_status.udp_port_state == Some(PortState::Open)
+            && self.dns_status.tcp_port_state == Some(PortState::Open)
+            && self.dns_status.query_response_state == Some(ApiQueryResponseState::Healthy)
+        {
+            status_line = Line::styled("Healthy", Style::default().fg(Color::Green).bold());
+        } else if self.dns_status.udp_port_state == Some(PortState::Closed)
+            && self.dns_status.tcp_port_state == Some(PortState::Closed)
+            && self.dns_status.query_response_state == Some(ApiQueryResponseState::NoResponse)
+        {
+            status_line = Line::styled("No Response", Style::default().fg(Color::Red).bold());
+        } else if self.dns_status.udp_port_state.is_none()
+            && self.dns_status.tcp_port_state.is_none()
+            && self.dns_status.query_response_state.is_none()
+        {
+            status_line = Line::styled(
+                "Not yet requested",
+                Style::default().fg(Color::White).bold(),
+            );
+        } else {
+            status_line = Line::styled("Unhealthy", Style::default().fg(Color::Magenta).bold());
+        };
+
         let block = self.get_block(
             CurrentFocus::DNSStatus,
             format!("[{}] Delete Cache", CurrentFocus::DNSStatus as u8),
@@ -187,7 +196,7 @@ impl App {
         frame.render_widget(status_par, split_layout[1]);
 
         let area = self.centered_rect(70, 99, split_layout[2]);
-        let details_par = Paragraph::new(vec![tcp_port_line, udp_port_line])
+        let details_par = Paragraph::new(vec![tcp_port_line, udp_port_line, api_status_line])
             .left_aligned()
             .wrap(Wrap { trim: true })
             .style(Style::default().fg(Color::White));

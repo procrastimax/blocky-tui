@@ -32,7 +32,7 @@ pub enum CacheDeleteStatus {
 /// Represents the state of the blocky DNS server
 ///
 /// Keeps track of the TCP port state, UDP port state and the result of an API DNS Query
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DNSStatus {
     pub query_response_state: Option<ApiQueryResponseState>,
     pub tcp_port_state: Option<PortState>,
