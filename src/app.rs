@@ -18,35 +18,27 @@ pub struct App {
     pub current_focus: CurrentFocus,
     /// tracking whether the user is currently inputting something in a text field
     pub is_currently_editing: bool,
-    pub blocking_status: Option<BlockingStatus>,
+    pub blocking_status: Option<BlockingState>,
     pub dns_status: DNSStatus,
-    pub cache_delete_status: Option<CacheDeleteStatus>,
+    pub cache_delete_state: Option<ActionState>,
+    pub blocking_list_refresh_state: Option<ActionState>,
 }
 
-#[derive(Debug)]
-pub enum CacheDeleteStatus {
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum ActionState {
     Success,
     Failure,
+    Waiting,
 }
 
 /// Represents the state of the blocky DNS server
 ///
 /// Keeps track of the TCP port state, UDP port state and the result of an API DNS Query
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct DNSStatus {
     pub query_response_state: Option<ApiQueryResponseState>,
     pub tcp_port_state: Option<PortState>,
     pub udp_port_state: Option<PortState>,
-}
-
-impl Default for DNSStatus {
-    fn default() -> Self {
-        Self {
-            query_response_state: None,
-            tcp_port_state: None,
-            udp_port_state: None,
-        }
-    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -61,7 +53,7 @@ pub enum ApiQueryResponseState {
 
 /// Represents the blocking status of blocky
 #[derive(Debug, PartialEq, Eq)]
-pub struct BlockingStatus {
+pub struct BlockingState {
     /// true if blocking is enabled
     pub is_blocking_enabled: bool,
     ///  If blocking is temporary disabled: amount of seconds until blocking will be enabled
@@ -159,7 +151,8 @@ impl App {
             is_currently_editing: false,
             blocking_status: None,
             dns_status: DNSStatus::default(),
-            cache_delete_status: None,
+            cache_delete_state: None,
+            blocking_list_refresh_state: None,
         };
         debug!("created new app struct");
         Ok(app)

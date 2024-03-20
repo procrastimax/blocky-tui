@@ -1,10 +1,10 @@
 use anyhow::Result;
-use tracing::{debug, error};
+use tracing::{debug, error, warn};
 
 use crate::{
     action::Action,
     api::DNSQuery,
-    app::{ApiQueryResponseState, App, CurrentFocus, RunningState},
+    app::{ActionState, ApiQueryResponseState, App, CurrentFocus, RunningState},
     port_check::{self, PortState},
 };
 
@@ -38,66 +38,107 @@ impl App {
             }
             Action::UpdateTile => {
                 if let CurrentFocus::DNSStatus = self.current_focus {
-                    let tx = self.action_tx.clone();
-                    let query = DNSQuery {
-                        query: "www.wikipedia.org",
-                        query_type: "A",
-                    };
-                    let dns_query = query.clone();
-                    let api_client = self.api.clone();
-                    let api_port = self.api.api_port;
-                    let dns_port = self.api.dns_port;
-                    tokio::spawn(async move {
-                        match api_client.post_dnsquery(dns_query).await {
-                            Ok(it) => {
-                                if it.returnCode == "NOERROR" {
-                                    tx.send(Action::SetDNSStatus(ApiQueryResponseState::Healthy))
-                                        .unwrap()
-                                } else {
-                                    tx.send(Action::SetDNSStatus(ApiQueryResponseState::Unhealthy))
-                                        .unwrap()
-                                }
-                            }
-                            Err(err) => {
-                                error!(%err);
-                                tx.send(Action::SetDNSStatus(ApiQueryResponseState::NoResponse))
-                                    .unwrap()
-                            }
-                        };
-                    });
-
-                    let domain = self.api.url.clone();
-                    let tx = self.action_tx.clone();
-                    tokio::spawn(async move {
-                        match port_check::check_tcp_port(domain.to_string(), api_port).await {
-                            Ok(port_state) => {
-                                tx.send(Action::SetTCPPortState(port_state)).unwrap();
-                            }
-                            Err(r) => {
-                                error!("error testing TCP port: {:?}", r);
-                                tx.send(Action::SetTCPPortState(PortState::Error)).unwrap();
-                            }
-                        }
-                    });
-
-                    let domain = self.api.url.clone();
-                    let dns_query = query.clone();
-                    let tx = self.action_tx.clone();
-                    tokio::spawn(async move {
-                        match port_check::check_dns(domain.to_string(), dns_port, dns_query).await {
-                            Ok(port_state) => {
-                                tx.send(Action::SetUDPPortState(port_state)).unwrap();
-                            }
-                            Err(r) => {
-                                error!("error querying UDP port: {:?}", r);
-                                tx.send(Action::SetUDPPortState(PortState::Error)).unwrap();
-                            }
-                        }
-                    });
+                    self.update_dns_tile();
                 }
+            }
+            Action::RefreshLists => {
+                self.refresh_blocking_lists();
+            }
+            Action::SetRefreshListState(action_state) => {
+                self.blocking_list_refresh_state = Some(*action_state);
             }
             _ => {}
         }
         Ok(())
+    }
+
+    fn refresh_blocking_lists(&mut self) {
+        let tx = self.action_tx.clone();
+        let api_client = self.api.clone();
+        tokio::spawn(async move {
+            tx.send(Action::SetRefreshListState(ActionState::Waiting))
+                .unwrap();
+            match api_client.post_refresh_list_cmd().await {
+                Ok(resp) => {
+                    if resp.status() == 200 {
+                        debug!("refreshing worked! {resp:?}");
+                        tx.send(Action::SetRefreshListState(ActionState::Success))
+                            .unwrap()
+                    } else if resp.status() == 500 {
+                        warn!("List refresh error {resp:?}");
+                        tx.send(Action::SetRefreshListState(ActionState::Failure))
+                            .unwrap()
+                    } else {
+                        warn!("received unknown response code from blocking list refresh command");
+                        tx.send(Action::SetRefreshListState(ActionState::Failure))
+                            .unwrap()
+                    }
+                }
+                Err(err) => {
+                    warn!("refreshing did not work! {err}");
+                    tx.send(Action::SetRefreshListState(ActionState::Failure))
+                        .unwrap()
+                }
+            }
+        });
+    }
+
+    fn update_dns_tile(&mut self) {
+        let tx = self.action_tx.clone();
+        let query = DNSQuery {
+            query: "www.wikipedia.org",
+            query_type: "A",
+        };
+        let dns_query = query.clone();
+        let api_client = self.api.clone();
+        let api_port = self.api.api_port;
+        let dns_port = self.api.dns_port;
+        tokio::spawn(async move {
+            match api_client.post_dnsquery(dns_query).await {
+                Ok(it) => {
+                    if it.returnCode == "NOERROR" {
+                        tx.send(Action::SetDNSStatus(ApiQueryResponseState::Healthy))
+                            .unwrap()
+                    } else {
+                        tx.send(Action::SetDNSStatus(ApiQueryResponseState::Unhealthy))
+                            .unwrap()
+                    }
+                }
+                Err(err) => {
+                    error!(%err);
+                    tx.send(Action::SetDNSStatus(ApiQueryResponseState::NoResponse))
+                        .unwrap()
+                }
+            };
+        });
+
+        let domain = self.api.url.clone();
+        let tx = self.action_tx.clone();
+        tokio::spawn(async move {
+            match port_check::check_tcp_port(domain.to_string(), api_port).await {
+                Ok(port_state) => {
+                    tx.send(Action::SetTCPPortState(port_state)).unwrap();
+                }
+                Err(r) => {
+                    error!("error testing TCP port: {:?}", r);
+                    tx.send(Action::SetTCPPortState(PortState::Error)).unwrap();
+                }
+            }
+        });
+
+        let domain = self.api.url.clone();
+        let dns_query = query.clone();
+        let tx = self.action_tx.clone();
+        tokio::spawn(async move {
+            match port_check::check_dns(domain.to_string(), dns_port, dns_query).await {
+                Ok(port_state) => {
+                    tx.send(Action::SetUDPPortState(port_state)).unwrap();
+                }
+                Err(r) => {
+                    error!("error querying UDP port: {:?}", r);
+                    tx.send(Action::SetUDPPortState(PortState::Error)).unwrap();
+                }
+            }
+        });
     }
 }

@@ -2,7 +2,7 @@ use anyhow::Result;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use tracing::debug;
 
-use crate::app::{ApiQueryResponseState, App};
+use crate::app::{ActionState, ApiQueryResponseState, App, CurrentFocus};
 use crate::port_check::PortState;
 use crate::tui::Event;
 
@@ -21,6 +21,7 @@ pub enum Action {
     SetDNSStatus(ApiQueryResponseState),
     SetUDPPortState(PortState),
     SetTCPPortState(PortState),
+    SetRefreshListState(ActionState),
     Render,
     Quit, // quits application
 }
@@ -59,7 +60,12 @@ impl App {
             }
             KeyCode::Char('R') => {
                 if !self.is_currently_editing {
-                    self.action_tx.send(Action::UpdateTile)?
+                    // dont call updateTile command on the refresh lists tile
+                    if self.current_focus == CurrentFocus::RefreshLists {
+                        self.action_tx.send(Action::RefreshLists)?
+                    } else {
+                        self.action_tx.send(Action::UpdateTile)?
+                    }
                 } else {
                     self.action_tx.send(Action::Key(*key))?
                 }

@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Result};
+use reqwest::Response;
 use serde::{Deserialize, Serialize};
 
 use std::time::Duration;
@@ -62,6 +63,19 @@ impl ApiClient {
         };
         debug!("created new API client: {api:?}");
         Ok(api)
+    }
+
+    /// Post a a request to refresh blocky's blocking lists
+    pub async fn post_refresh_list_cmd(&self) -> Result<Response> {
+        debug!("posting request to refresh blocking lists");
+        let url = self.url.join("api/lists/refresh")?;
+        let resp = self
+            .client
+            .post(url.to_string())
+            .header("accept", "text/plain")
+            .send()
+            .await?;
+        Ok(resp)
     }
 
     pub async fn post_dnsquery(&self, query: DNSQuery) -> Result<DNSResponse> {

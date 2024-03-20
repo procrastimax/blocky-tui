@@ -7,7 +7,7 @@ use ratatui::{
 };
 
 use crate::{
-    app::{ApiQueryResponseState, App, CurrentFocus},
+    app::{ActionState, ApiQueryResponseState, App, CurrentFocus},
     port_check::PortState,
 };
 
@@ -244,14 +244,61 @@ impl App {
     }
 
     fn render_refresh_list_tile(&self, r: Rect, frame: &mut Frame) {
-        let lists_par = Paragraph::new("Refresh Blocking Lists")
-            .centered()
-            .block(self.get_block(
-                CurrentFocus::RefreshLists,
-                format!("[{}] Refresh Lists", CurrentFocus::RefreshLists as u8),
-            ));
+        let status_line = match self.blocking_list_refresh_state {
+            None => {
+                let marker = Span::styled("?", Style::default().fg(Color::Yellow).bold());
+                Line::from(vec![
+                    "[".into(),
+                    marker,
+                    "] Blocking list update not yet queried".into(),
+                ])
+            }
+            Some(status) => match status {
+                ActionState::Waiting => {
+                    let marker = Span::styled("?", Style::default().fg(Color::Yellow).bold());
+                    Line::from(vec![
+                        "[".into(),
+                        marker,
+                        "] Requested list update...".into(),
+                    ])
+                }
+                ActionState::Success => {
+                    let marker = Span::styled("✓", Style::default().fg(Color::Green).bold());
+                    Line::from(vec![
+                        "[".into(),
+                        marker,
+                        "] Successfully updated blocking lists".into(),
+                    ])
+                }
+                ActionState::Failure => {
+                    let marker = Span::styled("🗙", Style::default().fg(Color::Red).bold());
+                    Line::from(vec![
+                        "[".into(),
+                        marker,
+                        "] Failed to uppdate blocking lists".into(),
+                    ])
+                }
+            },
+        };
 
-        frame.render_widget(lists_par, r);
+        let block = self.get_block(
+            CurrentFocus::RefreshLists,
+            format!(
+                "[{}] Refresh Blocking Lists",
+                CurrentFocus::RefreshLists as u8
+            ),
+        );
+        let split_layout = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Percentage(10), Constraint::Percentage(90)])
+            .split(block.inner(r));
+        frame.render_widget(block, r);
+
+        let area = self.centered_rect(90, 50, split_layout[1]);
+        let status_par = Paragraph::new(status_line)
+            .centered()
+            .wrap(Wrap { trim: true });
+        frame.render_widget(status_par, area);
     }
 
     fn render_query_tile(&self, r: Rect, frame: &mut Frame) {
