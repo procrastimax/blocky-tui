@@ -60,7 +60,7 @@ impl App {
                     self.action_tx.send(Action::Key(*key))?
                 }
             }
-            KeyCode::Char('R') => {
+            KeyCode::Enter => {
                 if !self.is_currently_editing {
                     // dont call updateTile command on the refresh lists tile
                     if self.current_focus == CurrentFocus::RefreshLists {
