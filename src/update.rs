@@ -47,12 +47,45 @@ impl App {
             Action::SetRefreshListState(action_state) => {
                 self.blocking_list_refresh_state = Some(*action_state);
             }
+            Action::ClearDNSCache => {
+                self.clear_dns_cache();
+            }
+            Action::SetDNSCacheClearState(action_state) => {
+                self.cache_delete_state = Some(*action_state);
+            }
             _ => {}
         }
         Ok(())
     }
 
-    fn refresh_blocking_lists(&mut self) {
+    fn clear_dns_cache(&self) {
+        let tx = self.action_tx.clone();
+        let api_client = self.api.clone();
+        tokio::spawn(async move {
+            tx.send(Action::SetDNSCacheClearState(ActionState::Waiting))
+                .unwrap();
+            match api_client.post_clear_dns_cache().await {
+                Ok(resp) => {
+                    if resp.status() == 200 {
+                        debug!("successfully deleted DNS cache! {resp:?}");
+                        tx.send(Action::SetDNSCacheClearState(ActionState::Success))
+                            .unwrap()
+                    } else {
+                        warn!("deleting DNS cache did not work! {resp:?}");
+                        tx.send(Action::SetDNSCacheClearState(ActionState::Failure))
+                            .unwrap()
+                    }
+                }
+                Err(err) => {
+                    warn!("could not issue a DNS cache deletion POST command! {err}");
+                    tx.send(Action::SetDNSCacheClearState(ActionState::Failure))
+                        .unwrap()
+                }
+            }
+        });
+    }
+
+    fn refresh_blocking_lists(&self) {
         let tx = self.action_tx.clone();
         let api_client = self.api.clone();
         tokio::spawn(async move {
@@ -75,7 +108,7 @@ impl App {
                     }
                 }
                 Err(err) => {
-                    warn!("refreshing did not work! {err}");
+                    warn!("could not issue a refresh blocking lists POST command! {err}");
                     tx.send(Action::SetRefreshListState(ActionState::Failure))
                         .unwrap()
                 }

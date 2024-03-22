@@ -275,7 +275,7 @@ impl App {
                     Line::from(vec![
                         "[".into(),
                         marker,
-                        "] Failed to uppdate blocking lists".into(),
+                        "] Failed to update blocking lists".into(),
                     ])
                 }
             },
@@ -311,14 +311,58 @@ impl App {
     }
 
     fn render_cache_delete_tile(&self, r: Rect, frame: &mut Frame) {
-        let query_par = Paragraph::new("Delete Cache")
-            .centered()
-            .block(self.get_block(
-                CurrentFocus::DeleteCache,
-                format!("[{}] Delete Cache", CurrentFocus::DeleteCache as u8),
-            ));
+        let status_line = match self.cache_delete_state {
+            None => {
+                let marker = Span::styled("?", Style::default().fg(Color::Yellow).bold());
+                Line::from(vec![
+                    "[".into(),
+                    marker,
+                    "] Deletion of DNS cache not yet queried".into(),
+                ])
+            }
+            Some(status) => match status {
+                ActionState::Waiting => {
+                    let marker = Span::styled("?", Style::default().fg(Color::Yellow).bold());
+                    Line::from(vec![
+                        "[".into(),
+                        marker,
+                        "] Requested DNS cache deletion...".into(),
+                    ])
+                }
+                ActionState::Success => {
+                    let marker = Span::styled("✓", Style::default().fg(Color::Green).bold());
+                    Line::from(vec![
+                        "[".into(),
+                        marker,
+                        "] Successfully deleted DNS cache".into(),
+                    ])
+                }
+                ActionState::Failure => {
+                    let marker = Span::styled("🗙", Style::default().fg(Color::Red).bold());
+                    Line::from(vec![
+                        "[".into(),
+                        marker,
+                        "] Failed to delete DNS cache".into(),
+                    ])
+                }
+            },
+        };
 
-        frame.render_widget(query_par, r);
+        let block = self.get_block(
+            CurrentFocus::DeleteCache,
+            format!("[{}] Delete DNS Cache", CurrentFocus::DeleteCache as u8),
+        );
+        let split_layout = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Percentage(10), Constraint::Percentage(90)])
+            .split(block.inner(r));
+        frame.render_widget(block, r);
+
+        let area = self.centered_rect(90, 50, split_layout[1]);
+        let status_par = Paragraph::new(status_line)
+            .centered()
+            .wrap(Wrap { trim: true });
+        frame.render_widget(status_par, area);
     }
 
     fn render_title(&self, r: Rect, frame: &mut Frame) {

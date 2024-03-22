@@ -17,11 +17,13 @@ pub enum Action {
     SubmitDNSQuery,     // sends DNS query to blocky
     RefreshLists,       // Refresh blocking lists
     UpdateTile,         // Update current Tile (or all app information)
+    ClearDNSCache,
     Key(KeyEvent),
     SetDNSStatus(ApiQueryResponseState),
     SetUDPPortState(PortState),
     SetTCPPortState(PortState),
     SetRefreshListState(ActionState),
+    SetDNSCacheClearState(ActionState),
     Render,
     Quit, // quits application
 }
@@ -63,6 +65,8 @@ impl App {
                     // dont call updateTile command on the refresh lists tile
                     if self.current_focus == CurrentFocus::RefreshLists {
                         self.action_tx.send(Action::RefreshLists)?
+                    } else if self.current_focus == CurrentFocus::DeleteCache {
+                        self.action_tx.send(Action::ClearDNSCache)?
                     } else {
                         self.action_tx.send(Action::UpdateTile)?
                     }

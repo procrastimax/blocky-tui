@@ -78,6 +78,14 @@ impl ApiClient {
         Ok(resp)
     }
 
+    /// Post a a request to delete the DNS response cache
+    pub async fn post_clear_dns_cache(&self) -> Result<Response> {
+        debug!("posting request to refresh blocking lists");
+        let url = self.url.join("api/cache/flush")?;
+        let resp = self.client.post(url.to_string()).send().await?;
+        Ok(resp)
+    }
+
     pub async fn post_dnsquery(&self, query: DNSQuery) -> Result<DNSResponse> {
         debug!("posting DNS query: {query:?}");
         let url = self.url.join("api/query")?;
