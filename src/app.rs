@@ -1,4 +1,5 @@
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tracing::{debug, info};
 
@@ -18,7 +19,7 @@ pub struct App {
     pub current_focus: CurrentFocus,
     /// tracking whether the user is currently inputting something in a text field
     pub is_currently_editing: bool,
-    pub blocking_status: Option<BlockingState>,
+    pub blocking_status: core::result::Result<Option<BlockingState>, ()>,
     pub dns_status: DNSStatus,
     pub cache_delete_state: Option<ActionState>,
     pub blocking_list_refresh_state: Option<ActionState>,
@@ -52,14 +53,12 @@ pub enum ApiQueryResponseState {
 }
 
 /// Represents the blocking status of blocky
-#[derive(Debug, PartialEq, Eq)]
+#[allow(non_snake_case)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Default, Clone)]
 pub struct BlockingState {
-    /// true if blocking is enabled
-    pub is_blocking_enabled: bool,
-    ///  If blocking is temporary disabled: amount of seconds until blocking will be enabled
-    pub unblocking_timer: Option<u32>,
-    /// Disabled group names
-    disabled_groups: Option<String>,
+    pub enabled: bool,
+    pub autoEnableInSec: Option<i32>,
+    pub disabledGroups: Option<Vec<String>>,
 }
 
 /// Store the currently focused tile.
@@ -149,7 +148,7 @@ impl App {
             current_screen: CurrentScreen::Main,
             current_focus: CurrentFocus::DNSStatus,
             is_currently_editing: false,
-            blocking_status: None,
+            blocking_status: Ok(None),
             dns_status: DNSStatus::default(),
             cache_delete_state: None,
             blocking_list_refresh_state: None,

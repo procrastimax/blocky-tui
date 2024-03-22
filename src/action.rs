@@ -2,7 +2,7 @@ use anyhow::Result;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use tracing::debug;
 
-use crate::app::{ActionState, ApiQueryResponseState, App, CurrentFocus};
+use crate::app::{ActionState, ApiQueryResponseState, App, BlockingState, CurrentFocus};
 use crate::port_check::PortState;
 use crate::tui::Event;
 
@@ -12,6 +12,7 @@ pub enum Action {
     CycleFocusUp,   // Move focus to next tile in UI
     CycleFocusDown, // Move focus to previous tile in UI
     JumpToTile(u8),
+    GetDNSBlockingStatus,
     EnableDNSBlocking,  // enables DNS blocking
     DisableDNSBlocking, // disable DNS blocking
     SubmitDNSQuery,     // sends DNS query to blocky
@@ -24,6 +25,7 @@ pub enum Action {
     SetTCPPortState(PortState),
     SetRefreshListState(ActionState),
     SetDNSCacheClearState(ActionState),
+    SetDNSBlockingStatus(Result<Option<BlockingState>, ()>),
     Render,
     Quit, // quits application
 }
@@ -67,6 +69,8 @@ impl App {
                         self.action_tx.send(Action::RefreshLists)?
                     } else if self.current_focus == CurrentFocus::DeleteCache {
                         self.action_tx.send(Action::ClearDNSCache)?
+                    } else if self.current_focus == CurrentFocus::BlockingStatus {
+                        self.action_tx.send(Action::GetDNSBlockingStatus)?
                     } else {
                         self.action_tx.send(Action::UpdateTile)?
                     }

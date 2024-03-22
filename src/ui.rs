@@ -204,43 +204,51 @@ impl App {
     }
 
     fn render_blocking_status_tile(&self, r: Rect, frame: &mut Frame) {
-        // TODO: render seconds and group names if blocking is disabled
-        let blocking_line = {
-            match &self.blocking_status {
+        let status_line = match &self.blocking_status {
+            Err(()) => {
+                let marker = Span::styled("🗙", Style::default().fg(Color::Red).bold());
+                Line::from(vec![
+                    "[".into(),
+                    marker,
+                    "] Could not get blocking status".into(),
+                ])
+            }
+            Ok(option_status) => match option_status {
                 Some(status) => {
-                    if status.is_blocking_enabled {
-                        vec![
-                            Line::from(Span::styled("Blocking", Style::default().fg(Color::Green))),
-                            Line::from(Span::from("DNS server is currently blocking")),
-                        ]
+                    if status.enabled {
+                        let marker = Span::styled("✓", Style::default().fg(Color::Green).bold());
+                        Line::from(vec!["[".into(), marker, "] Blocking is enabled".into()])
                     } else {
-                        vec![
-                            Line::from(Span::styled(
-                                "Not Blocking",
-                                Style::default().fg(Color::Green),
-                            )),
-                            Line::from(Span::from("DNS server is not blocking")),
-                        ]
+                        let marker = Span::styled("🗙", Style::default().fg(Color::Green).bold());
+                        Line::from(vec!["[".into(), marker, "] Blocking is disabled".into()])
                     }
                 }
-                None => vec![
-                    Line::styled("Not queried", Style::default().fg(Color::White).bold()),
-                    Line::styled(
-                        "Blocking status is not set",
-                        Style::default().fg(Color::White).italic(),
-                    ),
-                ],
-            }
+                None => {
+                    let marker = Span::styled("?", Style::default().fg(Color::Yellow).bold());
+                    Line::from(vec![
+                        "[".into(),
+                        marker,
+                        "] Requesting blocking status...".into(),
+                    ])
+                }
+            },
         };
 
-        let blocking_par = Paragraph::new(blocking_line)
-            .centered()
-            .block(self.get_block(
-                CurrentFocus::BlockingStatus,
-                format!("[{}] Blocking Status", CurrentFocus::BlockingStatus as u8),
-            ));
+        let block = self.get_block(
+            CurrentFocus::BlockingStatus,
+            format!("[{}] Blocking Status", CurrentFocus::BlockingStatus as u8),
+        );
+        let split_layout = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Percentage(10), Constraint::Percentage(90)])
+            .split(block.inner(r));
+        frame.render_widget(block, r);
 
-        frame.render_widget(blocking_par, r);
+        let area = self.centered_rect(90, 50, split_layout[1]);
+        let status_par = Paragraph::new(status_line)
+            .centered()
+            .wrap(Wrap { trim: true });
+        frame.render_widget(status_par, area);
     }
 
     fn render_refresh_list_tile(&self, r: Rect, frame: &mut Frame) {

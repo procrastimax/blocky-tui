@@ -6,6 +6,8 @@ use std::time::Duration;
 use tracing::{debug, error};
 use url::Url;
 
+use crate::app::BlockingState;
+
 #[derive(Debug, Clone)]
 pub struct ApiClient {
     /// Blocky API Base Url
@@ -85,6 +87,23 @@ impl ApiClient {
         let resp = self.client.post(url.to_string()).send().await?;
         Ok(resp)
     }
+
+    pub async fn get_blocking_status(&self) -> Result<BlockingState> {
+        debug!("requesting DNS blocking status");
+        let url = self.url.join("api/blocking/status")?;
+        let resp = self
+            .client
+            .get(url.to_string())
+            .header("accept", "application/json")
+            .send()
+            .await?
+            .json::<BlockingState>()
+            .await?;
+        debug!("received blocking status response: {resp:?}");
+        Ok(resp)
+    }
+
+    // TODO: set blocking status
 
     pub async fn post_dnsquery(&self, query: DNSQuery) -> Result<DNSResponse> {
         debug!("posting DNS query: {query:?}");

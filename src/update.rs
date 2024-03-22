@@ -1,5 +1,5 @@
 use anyhow::Result;
-use tracing::{debug, error, warn};
+use tracing::{debug, error, info, warn};
 
 use crate::{
     action::Action,
@@ -53,9 +53,33 @@ impl App {
             Action::SetDNSCacheClearState(action_state) => {
                 self.cache_delete_state = Some(*action_state);
             }
+            Action::GetDNSBlockingStatus => {
+                self.get_dns_blocking_state();
+            }
+            Action::SetDNSBlockingStatus(blocking_state) => {
+                self.blocking_status = blocking_state.clone();
+            }
             _ => {}
         }
         Ok(())
+    }
+
+    fn get_dns_blocking_state(&self) {
+        let tx = self.action_tx.clone();
+        let api_client = self.api.clone();
+        tokio::spawn(async move {
+            tx.send(Action::SetDNSBlockingStatus(Ok(None))).unwrap();
+            match api_client.get_blocking_status().await {
+                Ok(blocking_status) => {
+                    tx.send(Action::SetDNSBlockingStatus(Ok(Some(blocking_status))))
+                        .unwrap();
+                }
+                Err(err) => {
+                    warn!("could get DNS blocking status {err}");
+                    tx.send(Action::SetDNSBlockingStatus(Err(()))).unwrap()
+                }
+            }
+        });
     }
 
     fn clear_dns_cache(&self) {
