@@ -2,7 +2,7 @@ use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Style, Stylize},
     text::{Line, Span, Text},
-    widgets::{Block, BorderType, Borders, Paragraph, Wrap},
+    widgets::{Block, BorderType, Borders, Padding, Paragraph, Wrap},
     Frame,
 };
 
@@ -240,15 +240,42 @@ impl App {
         );
         let split_layout = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Percentage(10), Constraint::Percentage(90)])
+            .constraints([
+                Constraint::Percentage(10),
+                Constraint::Percentage(45),
+                Constraint::Percentage(45),
+            ])
             .split(block.inner(r));
         frame.render_widget(block, r);
 
         let area = self.centered_rect(90, 50, split_layout[1]);
         let status_par = Paragraph::new(status_line)
             .centered()
-            .wrap(Wrap { trim: true });
+            .wrap(Wrap { trim: true })
+            .style(Style::default().fg(Color::White));
         frame.render_widget(status_par, area);
+
+        let mut block_style = Style::default();
+        let mut border_type = BorderType::Plain;
+        if self.current_focus == CurrentFocus::BlockingStatus {
+            block_style = block_style.bold().fg(Color::Magenta);
+            border_type = BorderType::Thick;
+        }
+
+        let blocking_menu_block = Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default())
+            .border_type(border_type)
+            .style(block_style);
+
+        let blocking_menu_content =
+            Paragraph::new(Line::styled("Change Blocking Status", block_style))
+                .centered()
+                .block(blocking_menu_block)
+                .wrap(Wrap { trim: true });
+
+        let area = self.centered_rect(90, 30, split_layout[2]);
+        frame.render_widget(blocking_menu_content, area);
     }
 
     fn render_refresh_list_tile(&self, r: Rect, frame: &mut Frame) {
