@@ -2,6 +2,7 @@
 
 This project is a [ratatui](https://ratatui.rs/) based terminal user interface (TUI) to query information and interact with the [blocky](https://github.com/0xERR0R/blocky) DNS server.
 
+It utilizes the elm architecture [TEA](https://ratatui.rs/concepts/application-patterns/the-elm-architecture/), no enable fast and error-resistant user interfaces in Rust utilizing an actor model with message passing.
 
 ## Current State
 The project is archived, since I do not longer use the Blocky DNS server.
